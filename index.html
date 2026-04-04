@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VDL-FLOW — Visual Narrative Closed-Loop Animation Pipeline</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;1,14..32,300&display=swap" rel="stylesheet" />
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { background: #1C1C1C; font-family: 'Inter', system-ui, sans-serif; }
+
+      /* RWD: 小螢幕斷點 */
+      @media (max-width: 768px) {
+        #root > div { padding: 0 12px 60px !important; }
+        h1 { font-size: 22px !important; letter-spacing: 2px !important; }
+        h3 { font-size: 13px !important; }
+        pre { font-size: 10px !important; }
+        button { min-height: 36px; }
+      }
+
+      @media (max-width: 480px) {
+        #root > div { padding: 0 8px 40px !important; }
+        h1 { font-size: 18px !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "VDL-FLOW — AI 動畫導演工作站",
+  "version": "1.0.0",
+  "description": "AI 動畫導演的提示詞編排及視覺辨識工作站",
+  "action": {
+    "default_popup": "index.html",
+    "default_icon": {
+      "16":  "icons/16.png",
+      "48":  "icons/48.png",
+      "128": "icons/128.png"
+    }
+  },
+  "side_panel": {
+    "default_path": "index.html"
+  },
+  "permissions": [
+    "storage",
+    "sidePanel",
+    "clipboardWrite"
+  ],
+  "host_permissions": [
+    "https://image.pollinations.ai/*",
+    "https://cdn-lfs.huggingface.co/*",
+    "http://127.0.0.1:8188/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
+  "icons": {
+    "16":  "icons/16.png",
+    "48":  "icons/48.png",
+    "128": "icons/128.png"
+  }
+}

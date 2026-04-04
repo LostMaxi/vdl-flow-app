@@ -1,0 +1,58 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devPath": "http://localhost:3000",
+    "distDir": "../dist"
+  },
+  "package": {
+    "productName": "VDL-FLOW",
+    "version": "1.0.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": { "open": true },
+      "updater": { "active": true }
+    },
+    "bundle": {
+      "active": true,
+      "identifier": "com.lostmaxi.vdl-flow",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      "targets": ["nsis", "msi"],
+      "windows": {
+        "wix": {},
+        "nsis": {}
+      }
+    },
+    "security": {
+      "csp": null
+    },
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/LostMaxi/vdl-flow/releases/latest/download/latest.json"
+      ],
+      "dialog": true,
+      "pubkey": ""
+    },
+    "windows": [
+      {
+        "title": "VDL-FLOW — AI 動畫導演工作站",
+        "width": 1280,
+        "height": 900,
+        "minWidth": 960,
+        "minHeight": 640,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ]
+  }
+}
