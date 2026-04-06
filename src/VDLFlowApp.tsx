@@ -769,7 +769,7 @@ export default function VDLFlowApp() {
 
       <EnvWarning />
 
-      {/* ─── V5: scroll-snap + 右側圓點導航 ─── */}
+      {/* ─── V6: 程式化捲動導航（不使用 CSS scroll-snap，避免與 React Flow portal 衝突）─── */}
       <div
         ref={scrollContainerRef}
         onScroll={handleScrollSnap}
@@ -778,10 +778,7 @@ export default function VDLFlowApp() {
           minHeight: 0,
           overflowY: 'auto',
           overflowX: 'hidden',
-          scrollSnapType: 'y mandatory',
-          scrollBehavior: 'smooth',
-          position: 'relative',
-        } as React.CSSProperties}
+        }}
       >
         {/* 畫布區 — 填滿捲動容器可視高度 */}
         <div
@@ -790,7 +787,6 @@ export default function VDLFlowApp() {
             height: 'calc(100vh - 160px)',
             minHeight: 400,
             position: 'relative',
-            scrollSnapAlign: 'start',
           }}
         >
           <FlowCanvas
@@ -929,7 +925,6 @@ export default function VDLFlowApp() {
             background: '#191919',
             display: 'flex',
             flexDirection: 'column',
-            scrollSnapAlign: 'start',
           }}
         >
           <EditorPanel
@@ -958,7 +953,7 @@ export default function VDLFlowApp() {
         </div>
 
       {/* ─── 底部面板區 (scroll-snap 第三區) ─── */}
-      <div data-section="tools" style={{ flexShrink: 0, borderTop: '1px solid #333', padding: '0 16px 40px', scrollSnapAlign: 'start' }}>
+      <div data-section="tools" style={{ flexShrink: 0, borderTop: '1px solid #333', padding: '0 16px 40px' }}>
         {/* ─── 分鏡板 ─── */}
         <Suspense fallback={null}>
           <StoryboardWall shots={shotHistory} genHistory={genHistory} />

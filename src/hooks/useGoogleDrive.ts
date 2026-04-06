@@ -182,6 +182,13 @@ export function useGoogleDrive() {
   // 初始化 GIS Token Client
   useEffect(() => {
     if (!clientId || clientRef.current) return;
+    // 動態載入 GSI script（避免在 index.html 靜態載入干擾 React）
+    if (!document.querySelector('script[src*="accounts.google.com/gsi/client"]')) {
+      const s = document.createElement('script');
+      s.src = 'https://accounts.google.com/gsi/client';
+      s.async = true;
+      document.head.appendChild(s);
+    }
     const check = () => {
       if (!window.google?.accounts?.oauth2) {
         setTimeout(check, 200);
