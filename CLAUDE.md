@@ -148,7 +148,7 @@ interface Field {
 - **Accent: `#A78BFA` (Mottle Purple)** — primary action color
 - Dark purple variants: `#3B1D8F`, `#2A1A4A`, `#110B20`, `#0F0B1A`
 - Muted purple text: `#6B5A8A`, `#5A4A6A`
-- Banned: `#00CFB4` (teal), `#4ade80` (green), any green-family hue
+- Banned: `#4ade80` (green), any green-family hue (note: #00CFB4 teal retired, merged to lavender #DFCEEA)
 
 ## Environment Variables
 
