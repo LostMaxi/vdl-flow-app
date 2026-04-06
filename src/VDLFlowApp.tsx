@@ -8,7 +8,6 @@ import { useGenHistory } from './hooks/useGenHistory';
 import { node05ToNode06Prefill, palette02ToPhotometric } from './bridge/ndfToVdl';
 import { buildVDLFile, downloadVDL } from './utils/vdlExport';
 import { createSceneTimeline, stitchScenes, type SceneConfig, type StitchResult } from './engine/vdlTimeline';
-import { NodeCard } from './components/NodeCard';
 const StoryboardWall = lazy(() => import('./components/StoryboardWall').then(m => ({ default: m.StoryboardWall })));
 const ScriptPanel    = lazy(() => import('./components/ScriptPanel').then(m => ({ default: m.ScriptPanel })));
 import { EnvWarning } from './components/EnvWarning';
@@ -18,7 +17,11 @@ import { anime } from './hooks/useAnime';
 import { useI18n } from './i18n/context';
 import { useGoogleDrive } from './hooks/useGoogleDrive';
 import { SplashScreen } from './components/SplashScreen';
+import { FlowCanvas } from './components/flow/FlowCanvas';
+import { EditorPanel } from './components/flow/EditorPanel';
 import type { NodeDef } from './types/vdl';
+import type { NodeTemplate } from './types/filmDNA';
+import { assembleExportPayload } from './types/exportPayload';
 
 const SPLASH_SESSION_KEY = 'vdl-flow-splash-dismissed';
 
@@ -30,6 +33,7 @@ export default function VDLFlowApp() {
     setActiveIndex, addCompletedNode, writeLocks, setNodeValues, setPrompt,
     addSceneToHistory, addQARecord, resetShot, resetFlow,
     removeLock, savedPalettes, savePalette, deletePalette,
+    flowMode, setFlowMode,
   } = usePersistentFlow();
 
   const [copiedAll, setCopiedAll] = useState(false);
@@ -44,6 +48,7 @@ export default function VDLFlowApp() {
   const [filmReport, setFilmReport] = useState<{ valid: boolean; snapshotCount: number; gaps: StitchResult['gaps'] } | null>(null);
   const [qaRetryCount, setQaRetryCount] = useState(0);
   const [qaHumanReview, setQaHumanReview] = useState(false);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const footerRef = useRef<HTMLElement>(null);
   const copiedAllRef = useRef<HTMLButtonElement>(null);
@@ -287,6 +292,46 @@ export default function VDLFlowApp() {
     await drive.listProjects();
   }, [drive]);
 
+  // ─── 模板管理（跨節點存取，與 useTemplateVault 共享 localStorage 格式）──
+
+  const getTemplatesForNode = useCallback((nodeId: string): NodeTemplate[] => {
+    try {
+      const raw = localStorage.getItem(`vdl-templates-${nodeId}`);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  }, []);
+
+  const handleSaveTemplate = useCallback((template: Omit<NodeTemplate, 'id' | 'createdAt'>): NodeTemplate => {
+    const newTpl: NodeTemplate = {
+      ...template,
+      id: `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      createdAt: new Date().toISOString(),
+    };
+    try {
+      const existing = getTemplatesForNode(template.nodeId);
+      const next = [newTpl, ...existing].slice(0, 20);
+      localStorage.setItem(`vdl-templates-${template.nodeId}`, JSON.stringify(next));
+    } catch { /* quota */ }
+    return newTpl;
+  }, [getTemplatesForNode]);
+
+  const handleRemoveTemplate = useCallback((templateId: string) => {
+    // 需要遍歷所有節點的模板來找到並刪除
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('vdl-templates-')) {
+        try {
+          const templates: NodeTemplate[] = JSON.parse(localStorage.getItem(key) ?? '[]');
+          const filtered = templates.filter(t => t.id !== templateId);
+          if (filtered.length < templates.length) {
+            localStorage.setItem(key, JSON.stringify(filtered));
+            break;
+          }
+        } catch { /* ignore */ }
+      }
+    }
+  }, []);
+
   // ─── 節點完成處理（必須在條件式 return 之前，遵守 Rules of Hooks）───
 
   const handleNodeComplete = useCallback((nodeDef: NodeDef, values: Record<string, string | number>) => {
@@ -454,12 +499,38 @@ export default function VDLFlowApp() {
       } catch { /* 報告生成失敗 → 不阻斷 */ }
     }
 
+    // NODE 09 → 全局風格鎖定
+    if (nodeDef.id === 'node_09') {
+      const styleKeys = ['global_style', 'global_negative', 'lut_desc'];
+      styleKeys.forEach(key => {
+        if (values[key] !== undefined && values[key] !== '') {
+          incoming[key] = { value: values[key], source: 'node_09' };
+        }
+      });
+    }
+
+    // NODE 14 → exportPayload 組裝 + 自動下載
+    if (nodeDef.id === 'node_14') {
+      try {
+        const payload = assembleExportPayload(
+          nodeValues, locks, allPrompts, sceneHistory, shotHistory,
+        );
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = `vdl-export-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch { /* payload 組裝失敗 → 不阻斷 */ }
+    }
+
     writeLocks(incoming);
     setNodeValues(nodeDef.id, values);
-    setPrompt(nodeDef.id, nodeDef.promptTemplate(values));
+    setPrompt(nodeDef.id, nodeDef.promptTemplate(values, locks));
     addCompletedNode(nodeDef.id);
     setActiveIndex(i => Math.min(i + 1, NODE_DEFS.length - 1));
-  }, [writeLocks, addCompletedNode, setActiveIndex, setNodeValues, setPrompt, nodeValues, sceneHistory, addSceneToHistory, addQARecord, setStitchReport, setFilmReport, qaRetryCount]);
+  }, [writeLocks, addCompletedNode, setActiveIndex, setNodeValues, setPrompt, nodeValues, locks, allPrompts, sceneHistory, shotHistory, addSceneToHistory, addQARecord, setStitchReport, setFilmReport, qaRetryCount]);
 
   const handleCopyAll = () => {
     const assembled = NODE_DEFS
@@ -674,155 +745,231 @@ export default function VDLFlowApp() {
 
       <EnvWarning />
 
-      {/* ─── 節點卡片列表 ─── */}
-      <main style={styles.main}>
-        {NODE_DEFS.map((nodeDef, i) => (
-          <div key={nodeDef.id}>
-            <NodeCard
-              nodeDef={nodeDef}
-              isActive={i === activeIndex}
-              isCompleted={completedNodes.has(nodeDef.id)}
-              locks={locks}
-              initialValues={nodeValues[nodeDef.id]}
-              onComplete={handleNodeComplete}
-              onLockFields={writeLocks}
-              onRemoveLock={removeLock}
-              savedPalettes={savedPalettes}
-              onSavePalette={savePalette}
-              onDeletePalette={deletePalette}
-              shotQAHistory={nodeDef.id === 'node_12' ? shotHistory.map(s => s.qaScores) : undefined}
-            />
-          </div>
-        ))}
-      </main>
+      {/* ─── V2: 分割佈局 — FlowCanvas (左60%) + EditorPanel (右40%) ─── */}
+      <div style={{
+        display: 'flex',
+        flex: 1,
+        minHeight: 0,
+        overflow: 'hidden',
+      }}>
+        {/* 左側：React Flow 視覺化節點圖 */}
+        <div style={{ flex: 6, position: 'relative', minHeight: 0 }}>
+          <FlowCanvas
+            nodeDefs={NODE_DEFS}
+            activeIndex={activeIndex}
+            completedNodes={completedNodes}
+            nodeValues={nodeValues}
+            selectedNodeId={selectedNodeId}
+            onNodeSelect={setSelectedNodeId}
+          />
 
-      {/* ─── A2 跨場景連續性報告 ─── */}
-      {stitchReport && (
-        <div style={{ background: '#110B20', border: `1px solid ${stitchReport.valid ? '#4C4E56' : '#3a1a1a'}`, borderRadius: 2, padding: '12px 16px', marginTop: 16, fontSize: 9, fontFamily: 'inherit' }}>
-          <div style={{ color: stitchReport.valid ? '#D9D9D6' : '#707372', letterSpacing: 1, marginBottom: 6 }}>
-            {stitchReport.valid ? t('report.a2.continuous') : t('report.a2.gaps', { count: String(stitchReport.gaps.length) })}
-            {sceneHistory.length > 1 && <span style={{ color: '#888', marginLeft: 8 }}>{t('report.a2.accumulated', { count: String(sceneHistory.length) })}</span>}
-          </div>
-          {stitchReport.gaps.length > 0 && stitchReport.gaps.map((g, i) => (
-            <div key={i} style={{ color: '#f59e0b', marginBottom: 2 }}>
-              ◎ {g.between[0]} → {g.between[1]} | {g.field}: Δ{g.delta.toFixed(3)}
-            </div>
-          ))}
-          {stitchReport.valid && (
-            <div style={{ color: '#D9D9D6' }}>{t('report.a2.pass')}</div>
-          )}
-        </div>
-      )}
-
-      {/* ─── 全片驗證報告 ─── */}
-      {filmReport && (
-        <div style={{ background: '#0a1020', border: `1px solid ${filmReport.valid ? '#1a2a4a' : '#3a1a1a'}`, borderRadius: 2, padding: '12px 16px', marginTop: 8, fontSize: 9, fontFamily: 'inherit' }}>
-          <div style={{ color: filmReport.valid ? '#60a5fa' : '#707372', letterSpacing: 1, marginBottom: 6 }}>
-            {filmReport.valid ? t('report.film.pass') : t('report.film.fail')} {t('report.film.snapshots', { count: String(filmReport.snapshotCount) })}
-          </div>
-          {filmReport.gaps.length === 0
-            ? <div style={{ color: '#D9D9D6' }}>{t('report.film.allPass')}</div>
-            : filmReport.gaps.map((g, i) => (
-              <div key={i} style={{ color: '#f59e0b', marginBottom: 2 }}>
-                ◎ {g.between[0]} → {g.between[1]} | {g.field}: Δ{g.delta.toFixed(3)}
-              </div>
-            ))
-          }
-          {filmReport.valid && (
+          {/* 畫布內疊加：模式切換 */}
+          <div style={{
+            position: 'absolute', top: 12, right: 12, zIndex: 10,
+            display: 'flex', gap: 4,
+          }}>
             <button
-              onClick={() => { if (confirm(t('report.film.nextShotConfirm'))) { resetShot(); setStitchReport(null); setFilmReport(null); setQaRetryCount(0); setQaHumanReview(false); } }}
-              style={{ marginTop: 10, fontSize: 9, color: '#60a5fa', background: 'none', border: '1px solid #1a2a4a', padding: '4px 12px', borderRadius: 2, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: 1 }}
+              onClick={() => setFlowMode('basic')}
+              style={{
+                fontSize: 9, padding: '4px 10px', borderRadius: '3px 0 0 3px', cursor: 'pointer',
+                border: '1px solid #4C4E56', fontFamily: "'Inter', 'Noto Sans TC', sans-serif",
+                background: flowMode === 'basic' ? '#2A1A4A' : '#1C1C1C',
+                color: flowMode === 'basic' ? '#DFCEEA' : '#818387',
+                letterSpacing: 0.5, fontWeight: 600,
+              }}
             >
-              {t('report.film.nextShot')}
+              BASIC
             </button>
+            <button
+              onClick={() => setFlowMode('advanced')}
+              style={{
+                fontSize: 9, padding: '4px 10px', borderRadius: '0 3px 3px 0', cursor: 'pointer',
+                border: '1px solid #4C4E56', borderLeft: 'none', fontFamily: "'Inter', 'Noto Sans TC', sans-serif",
+                background: flowMode === 'advanced' ? '#2A1A4A' : '#1C1C1C',
+                color: flowMode === 'advanced' ? '#DFCEEA' : '#818387',
+                letterSpacing: 0.5, fontWeight: 600,
+              }}
+            >
+              ADVANCED
+            </button>
+          </div>
+
+          {/* 畫布內疊加：A2 跨場景報告 */}
+          {stitchReport && (
+            <div style={{
+              position: 'absolute', bottom: 12, left: 12, zIndex: 10, maxWidth: 400,
+              background: '#110B20ee', border: `1px solid ${stitchReport.valid ? '#4C4E56' : '#3a1a1a'}`, borderRadius: 6, padding: '10px 14px', fontSize: 9, fontFamily: "'Inter', 'Noto Sans TC', sans-serif", backdropFilter: 'blur(8px)',
+            }}>
+              <div style={{ color: stitchReport.valid ? '#D9D9D6' : '#707372', letterSpacing: 1, marginBottom: 4 }}>
+                {stitchReport.valid ? t('report.a2.continuous') : t('report.a2.gaps', { count: String(stitchReport.gaps.length) })}
+                {sceneHistory.length > 1 && <span style={{ color: '#888', marginLeft: 8 }}>{t('report.a2.accumulated', { count: String(sceneHistory.length) })}</span>}
+              </div>
+              {stitchReport.gaps.length > 0 && stitchReport.gaps.map((g, i) => (
+                <div key={i} style={{ color: '#f59e0b', marginBottom: 2 }}>
+                  ◎ {g.between[0]} → {g.between[1]} | {g.field}: Δ{g.delta.toFixed(3)}
+                </div>
+              ))}
+              {stitchReport.valid && (
+                <div style={{ color: '#D9D9D6' }}>{t('report.a2.pass')}</div>
+              )}
+            </div>
+          )}
+
+          {/* 畫布內疊加：全片驗證報告 */}
+          {filmReport && (
+            <div style={{
+              position: 'absolute', bottom: stitchReport ? 100 : 12, left: 12, zIndex: 10, maxWidth: 400,
+              background: '#0a1020ee', border: `1px solid ${filmReport.valid ? '#1a2a4a' : '#3a1a1a'}`, borderRadius: 6, padding: '10px 14px', fontSize: 9, fontFamily: "'Inter', 'Noto Sans TC', sans-serif", backdropFilter: 'blur(8px)',
+            }}>
+              <div style={{ color: filmReport.valid ? '#60a5fa' : '#707372', letterSpacing: 1, marginBottom: 4 }}>
+                {filmReport.valid ? t('report.film.pass') : t('report.film.fail')} {t('report.film.snapshots', { count: String(filmReport.snapshotCount) })}
+              </div>
+              {filmReport.gaps.length === 0
+                ? <div style={{ color: '#D9D9D6' }}>{t('report.film.allPass')}</div>
+                : filmReport.gaps.map((g, i) => (
+                  <div key={i} style={{ color: '#f59e0b', marginBottom: 2 }}>
+                    ◎ {g.between[0]} → {g.between[1]} | {g.field}: Δ{g.delta.toFixed(3)}
+                  </div>
+                ))
+              }
+              {filmReport.valid && (
+                <button
+                  onClick={() => { if (confirm(t('report.film.nextShotConfirm'))) { resetShot(); setStitchReport(null); setFilmReport(null); setQaRetryCount(0); setQaHumanReview(false); } }}
+                  style={{ marginTop: 6, fontSize: 9, color: '#60a5fa', background: 'none', border: '1px solid #1a2a4a', padding: '3px 10px', borderRadius: 2, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: 1 }}
+                >
+                  {t('report.film.nextShot')}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* 畫布內疊加：QA 衰減重試 */}
+          {qaRetryCount > 0 && !filmReport && !qaHumanReview && (
+            <div style={{
+              position: 'absolute', bottom: 12, left: 12, zIndex: 10, maxWidth: 360,
+              background: '#1C1C1Cee', border: '1px solid #4C4E56', borderRadius: 6, padding: '10px 14px', fontSize: 9, fontFamily: "'Inter', 'Noto Sans TC', sans-serif", backdropFilter: 'blur(8px)',
+            }}>
+              <div style={{ color: '#D9D9D6', letterSpacing: 1, marginBottom: 4 }}>
+                {t('qa.decay.title', { count: String(qaRetryCount) })}
+              </div>
+              <div style={{ color: '#818387' }}>
+                {t('qa.decay.relaxed', { pct: String(Math.round(qaRetryCount * 13)) })}
+              </div>
+              <div style={{ color: '#555', marginTop: 3 }}>
+                {t('qa.decay.warning')}
+              </div>
+            </div>
+          )}
+
+          {/* 畫布內疊加：人類仲裁 */}
+          {qaHumanReview && (
+            <div style={{
+              position: 'absolute', bottom: 12, left: 12, zIndex: 10, maxWidth: 400,
+              background: '#1C1C1Cee', border: '1px solid #818387', borderRadius: 6, padding: '12px 16px', fontSize: 9, fontFamily: "'Inter', 'Noto Sans TC', sans-serif", backdropFilter: 'blur(8px)',
+            }}>
+              <div style={{ color: '#D9D9D6', letterSpacing: 2, marginBottom: 6 }}>{t('qa.human.title')}</div>
+              <div style={{ color: '#818387', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+                {t('qa.human.desc')}
+              </div>
+              <button
+                onClick={() => { setQaRetryCount(0); setQaHumanReview(false); }}
+                style={{ marginTop: 8, fontSize: 9, color: '#D9D9D6', background: 'none', border: '1px solid #4C4E56', padding: '3px 10px', borderRadius: 2, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: 1 }}
+              >
+                {t('qa.human.reset')}
+              </button>
+            </div>
           )}
         </div>
-      )}
 
-      {/* ─── QA 衰減重試面板 ─── */}
-      {qaRetryCount > 0 && !filmReport && !qaHumanReview && (
-        <div style={{ background: '#1C1C1C', border: '1px solid #4C4E56', borderRadius: 2, padding: '10px 14px', marginTop: 8, fontSize: 9, fontFamily: 'inherit' }}>
-          <div style={{ color: '#D9D9D6', letterSpacing: 1, marginBottom: 4 }}>
-            {t('qa.decay.title', { count: String(qaRetryCount) })}
-          </div>
-          <div style={{ color: '#818387' }}>
-            {t('qa.decay.relaxed', { pct: String(Math.round(qaRetryCount * 13)) })}
-          </div>
-          <div style={{ color: '#555', marginTop: 3 }}>
-            {t('qa.decay.warning')}
-          </div>
+        {/* 右側：編輯面板 */}
+        <div style={{
+          flex: 4,
+          borderLeft: '1px solid #333',
+          background: '#191919',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+        }}>
+          <EditorPanel
+            selectedNodeId={selectedNodeId}
+            nodeDefs={NODE_DEFS}
+            activeIndex={activeIndex}
+            completedNodes={completedNodes}
+            locks={locks}
+            nodeValues={nodeValues}
+            flowMode={flowMode}
+            onComplete={handleNodeComplete}
+            onLockFields={writeLocks}
+            onRemoveLock={removeLock}
+            savedPalettes={savedPalettes}
+            onSavePalette={savePalette}
+            onDeletePalette={deletePalette}
+            shotHistory={shotHistory}
+            getTemplatesForNode={getTemplatesForNode}
+            onSaveTemplate={handleSaveTemplate}
+            onRemoveTemplate={handleRemoveTemplate}
+            projectName={projects.find(p => p.id === activeId)?.name ?? 'VDL-FLOW'}
+            sceneCount={sceneHistory.length}
+            shotCount={shotHistory.length}
+          />
         </div>
-      )}
+      </div>
 
-      {/* ─── 人類仲裁面板 ─── */}
-      {qaHumanReview && (
-        <div style={{ background: '#1C1C1C', border: '1px solid #818387', borderRadius: 2, padding: '12px 16px', marginTop: 8, fontSize: 9, fontFamily: 'inherit' }}>
-          <div style={{ color: '#D9D9D6', letterSpacing: 2, marginBottom: 6 }}>{t('qa.human.title')}</div>
-          <div style={{ color: '#818387', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
-            {t('qa.human.desc')}
+      {/* ─── 底部面板區（可捲動） ─── */}
+      <div style={{ flexShrink: 0, maxHeight: '35vh', overflowY: 'auto', borderTop: '1px solid #333', padding: '0 16px 40px' }}>
+        {/* ─── 分鏡板 ─── */}
+        <Suspense fallback={null}>
+          <StoryboardWall shots={shotHistory} genHistory={genHistory} />
+        </Suspense>
+
+        {/* ─── 腳本串接 + 批次匯出 ─── */}
+        <Suspense fallback={null}>
+          <ScriptPanel
+            shots={shotHistory}
+            nodeValues={nodeValues}
+            locks={locks}
+            projectName={projects.find(p => p.id === activeId)?.name ?? 'vdl-project'}
+          />
+        </Suspense>
+
+        {/* ─── 多鏡頭提示詞彙整 ─── */}
+        {shotHistory.length > 0 && (
+          <div style={{ background: '#080c10', border: '1px solid #1a2030', borderRadius: 2, padding: '12px 16px', marginTop: 16, fontSize: 9, fontFamily: 'inherit' }}>
+            <div style={{ color: '#60a5fa', letterSpacing: 1, marginBottom: 8 }}>
+              {t('shots.title', { count: String(shotHistory.length) })}
+            </div>
+            {shotHistory.map(shot => (
+              <details key={shot.shotIndex} style={{ marginBottom: 8 }}>
+                <summary style={{ color: '#888', cursor: 'pointer', marginBottom: 4 }}>
+                  {t('shots.shot', { index: String(shot.shotIndex + 1) })}
+                  {shot.qaScores.length > 0 && (
+                    <span style={{ marginLeft: 8, color: '#555' }}>
+                      QA [{shot.qaScores.map(s => Math.round(s * 100) + '%').join(' · ')}]
+                    </span>
+                  )}
+                </summary>
+                <pre style={{ margin: '4px 0 0 12px', color: '#5A4A6A', fontSize: 8, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                  {Object.entries(shot.prompts)
+                    .filter(([, v]) => v)
+                    .map(([id, p]) => `[${id}]\n${p}`)
+                    .join('\n\n')}
+                </pre>
+              </details>
+            ))}
+            <button
+              onClick={() => {
+                const text = shotHistory.map(s =>
+                  `SHOT ${s.shotIndex + 1} — QA [${s.qaScores.map(x => Math.round(x * 100) + '%').join(' · ')}]\n${'═'.repeat(60)}\n` +
+                  Object.entries(s.prompts).filter(([, v]) => v).map(([id, p]) => `[${id}]\n${p}`).join('\n\n')
+                ).join('\n\n');
+                navigator.clipboard.writeText(text);
+              }}
+              style={{ fontSize: 9, color: '#60a5fa', background: 'none', border: '1px solid #1a2a4a', padding: '4px 12px', borderRadius: 2, cursor: 'pointer', fontFamily: 'inherit' }}
+            >
+              {t('shots.copyAll')}
+            </button>
           </div>
-          <button
-            onClick={() => { setQaRetryCount(0); setQaHumanReview(false); }}
-            style={{ marginTop: 10, fontSize: 9, color: '#D9D9D6', background: 'none', border: '1px solid #4C4E56', padding: '4px 12px', borderRadius: 2, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: 1 }}
-          >
-            {t('qa.human.reset')}
-          </button>
-        </div>
-      )}
-
-      {/* ─── 分鏡板 ─── */}
-      <Suspense fallback={null}>
-        <StoryboardWall shots={shotHistory} genHistory={genHistory} />
-      </Suspense>
-
-      {/* ─── 腳本串接 + 批次匯出 ─── */}
-      <Suspense fallback={null}>
-        <ScriptPanel
-          shots={shotHistory}
-          nodeValues={nodeValues}
-          locks={locks}
-          projectName={projects.find(p => p.id === activeId)?.name ?? 'vdl-project'}
-        />
-      </Suspense>
-
-      {/* ─── 多鏡頭提示詞彙整 ─── */}
-      {shotHistory.length > 0 && (
-        <div style={{ background: '#080c10', border: '1px solid #1a2030', borderRadius: 2, padding: '12px 16px', marginTop: 16, fontSize: 9, fontFamily: 'inherit' }}>
-          <div style={{ color: '#60a5fa', letterSpacing: 1, marginBottom: 8 }}>
-            {t('shots.title', { count: String(shotHistory.length) })}
-          </div>
-          {shotHistory.map(shot => (
-            <details key={shot.shotIndex} style={{ marginBottom: 8 }}>
-              <summary style={{ color: '#888', cursor: 'pointer', marginBottom: 4 }}>
-                {t('shots.shot', { index: String(shot.shotIndex + 1) })}
-                {shot.qaScores.length > 0 && (
-                  <span style={{ marginLeft: 8, color: '#555' }}>
-                    QA [{shot.qaScores.map(s => Math.round(s * 100) + '%').join(' · ')}]
-                  </span>
-                )}
-              </summary>
-              <pre style={{ margin: '4px 0 0 12px', color: '#5A4A6A', fontSize: 8, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                {Object.entries(shot.prompts)
-                  .filter(([, v]) => v)
-                  .map(([id, p]) => `[${id}]\n${p}`)
-                  .join('\n\n')}
-              </pre>
-            </details>
-          ))}
-          <button
-            onClick={() => {
-              const text = shotHistory.map(s =>
-                `SHOT ${s.shotIndex + 1} — QA [${s.qaScores.map(x => Math.round(x * 100) + '%').join(' · ')}]\n${'═'.repeat(60)}\n` +
-                Object.entries(s.prompts).filter(([, v]) => v).map(([id, p]) => `[${id}]\n${p}`).join('\n\n')
-              ).join('\n\n');
-              navigator.clipboard.writeText(text);
-            }}
-            style={{ fontSize: 9, color: '#60a5fa', background: 'none', border: '1px solid #1a2a4a', padding: '4px 12px', borderRadius: 2, cursor: 'pointer', fontFamily: 'inherit' }}
-          >
-            {t('shots.copyAll')}
-          </button>
-        </div>
-      )}
+        )}
 
       {/* ─── 工具列 ─── */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 24 }}>
@@ -893,6 +1040,7 @@ export default function VDLFlowApp() {
           </div>
         </footer>
       )}
+      </div>{/* 底部面板區關閉 */}
     </div>
   );
 }

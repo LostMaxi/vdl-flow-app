@@ -27,6 +27,7 @@ interface FlowState {
   sceneHistory: SceneConfig[];            // Phase 9 P1
   shotHistory:  ShotRecord[];             // Phase 11 P3/P4
   savedPalettes: string[][];              // P2: 色票儲存組（最多 10）
+  flowMode: 'basic' | 'advanced';         // Phase 13: 簡易/進階模式
 }
 
 const DEFAULT_STATE: FlowState = {
@@ -38,6 +39,7 @@ const DEFAULT_STATE: FlowState = {
   sceneHistory: [],
   shotHistory:  [],
   savedPalettes: [],
+  flowMode: 'basic',
 };
 
 function loadState(): FlowState {
@@ -171,6 +173,11 @@ export function usePersistentFlow() {
     });
   }, []);
 
+  // Phase 13: 簡易/進階模式切換
+  const setFlowMode = useCallback((mode: 'basic' | 'advanced') => {
+    setState(prev => ({ ...prev, flowMode: mode }));
+  }, []);
+
   const resetFlow = useCallback(() => {
     setState(DEFAULT_STATE);
     localStorage.removeItem(STORAGE_KEY);
@@ -196,6 +203,8 @@ export function usePersistentFlow() {
     savedPalettes: state.savedPalettes ?? [],   // P2: 色票組
     savePalette,                                // P2: 儲存色票組
     deletePalette,                              // P2: 刪除色票組
+    flowMode: state.flowMode ?? 'basic',        // Phase 13: 簡易/進階
+    setFlowMode,                                // Phase 13
     resetFlow,
   };
 }

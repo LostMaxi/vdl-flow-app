@@ -11,6 +11,7 @@ export interface Field {
   noDice?: boolean;  // 排除骰子隨機（數值、色票、色溫等）
   hudControl?: 'camera' | 'lighting' | 'orbit';  // 此欄位由 HUD 視覺化控制
   autoCompute?: boolean;  // 自動計算欄位（不可手動編輯）
+  visibility?: 'basic' | 'advanced';  // 簡易/進階模式欄位分層（未標記 = basic）
 }
 
 export interface LockEntry {
@@ -38,6 +39,7 @@ export interface NodeDef {
 }
 
 export interface NodeCardProps {
+  flowMode?: 'basic' | 'advanced';  // 簡易/進階模式
   nodeDef: NodeDef;
   isActive: boolean;
   isCompleted: boolean;

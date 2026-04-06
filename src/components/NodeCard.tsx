@@ -125,6 +125,7 @@ function detectMotionPattern(frameA: ImageData, frameB: ImageData): { pattern: s
 // ─── NodeCard 元件 ───────────────────────────────────────────
 
 export function NodeCard({
+  flowMode = 'basic',
   nodeDef, isActive, isCompleted, locks, initialValues,
   onComplete, onLockFields, onRemoveLock,
   savedPalettes = [], onSavePalette, onDeletePalette,
@@ -134,6 +135,7 @@ export function NodeCard({
   const { t } = useI18n();
   const [values, setValues] = useState<Record<string, string | number>>(initialValues ?? {});
   const [copied, setCopied] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
   const [translatedPrompt, setTranslatedPrompt] = useState<string | null>(null);
   const [translating, setTranslating] = useState(false);
   const imgInputRef    = useRef<HTMLInputElement>(null);
@@ -552,7 +554,33 @@ export function NodeCard({
         </div>
       )}
 
-      <p style={styles.cardDesc}>{nodeDef.description}</p>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 16 }}>
+        <p style={{ ...styles.cardDesc, margin: 0, flex: 1 }}>{nodeDef.description}</p>
+        <button
+          onClick={() => setShowGuide(g => !g)}
+          title="Guide"
+          style={{
+            flexShrink: 0, width: 22, height: 22, borderRadius: '50%',
+            border: `1px solid ${showGuide ? '#A78BFA' : '#4C4E56'}`,
+            background: showGuide ? '#2A1A4A' : 'transparent',
+            color: showGuide ? '#DFCEEA' : '#818387',
+            fontSize: 11, fontWeight: 700, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: 'inherit',
+          }}
+        >
+          ?
+        </button>
+      </div>
+      {showGuide && (
+        <div style={{
+          background: '#111', border: '1px dashed #2A1A4A', borderRadius: 4,
+          padding: '10px 14px', marginBottom: 14, fontSize: 10, lineHeight: 1.8,
+          color: '#818387', whiteSpace: 'pre-line',
+        }}>
+          {t(`node.${nodeDef.id.replace('node_', '')}.guide`)}
+        </div>
+      )}
 
       {/* ─── P4: 鎖定欄位列 + 解鎖按鈕 ──────────────────── */}
       {Object.keys(locks).length > 0 && (
@@ -584,6 +612,8 @@ export function NodeCard({
       {/* ─── 欄位網格 ───────────────────────────────────────── */}
       <div style={styles.fieldGrid}>
         {nodeDef.fields.filter(field => {
+          // Phase 13: flowMode visibility 過濾
+          if (flowMode === 'basic' && field.visibility === 'advanced') return false;
           if (!field.showWhen) return true;
           const cur = String(mergedValues[field.showWhen.key] ?? values[field.showWhen.key] ?? '');
           return field.showWhen.values.includes(cur);

@@ -525,4 +525,20 @@ export const en: Record<string, string> = {
   'qa.report.status.pass': '◎ STATUS: PASS — Copy all prompts for output',
   'qa.report.status.fail': '◎ STATUS: FAIL — Feedback to: {nodes}',
   'qa.report.status.failPlaceholder': 'Please enter feedback nodes',
+
+  // ─── NODE Guides ──────────────────────────────────────────
+  'node.01.guide': '[Purpose] Define core thesis, emotional arc, and visual style foundation.\n[Basic] Core thesis, start/end emotions, style keywords.\n[Advanced] Target audience and total duration.',
+  'node.02.guide': '[Purpose] Build story spacetime, physical environment, and color DNA.\n[Basic] Time period, location, dominant palette, atmosphere.\n[Advanced] Fine-tune color temperature range (K) and material keywords.',
+  'node.03.guide': '[Purpose] Design subject visual DNA for consistent appearance across the film.\n[Basic] Subject type, name, accent color, distinguishing feature.\n[Advanced] Age/build, hair, skin hex, clothing; or creature species/texture/motion; or object material/detail.',
+  'node.04.guide': '[Purpose] Scene-level script: actions, dialogue, emotion tags.\n[Basic] Scene ID, location, action description, dialogue/narration, emotion tag.\n[Advanced] NDF tension/emotion targets (0–1) and scene duration.',
+  'node.05.guide': '[Purpose] Anime.js-driven T/E/I/C timeline curve definition.\n[Basic] Set Tension / Emotion start and end values.\n[Advanced] Custom T_easing function, Information / CharFocus start/end values.',
+  'node.06.guide': '[Purpose] Full scene visual environment: VDL photometric params + 3-layer depth + lighting.\n[Basic] Environment description, color temp K, exposure EV, contrast, saturation.\n[Advanced] Shadow lift, foreground/midground/background descriptions, key light description.',
+  'node.07.guide': '[Purpose] Lens specs, movement type, Orbit 360°, height, and Dutch Angle.\n[Basic] Shot type, focal length, movement type.\n[Advanced] Aperture f-stop, movement speed, Dutch Angle, camera height, Orbit start/end angles and direction, time scale (bullet time).',
+  'node.08.guide': '[Purpose] Composition rules: rule of thirds, depth layers, negative space, leading lines.\n[Basic] Subject position, character action/expression.\n[Advanced] Rule-of-thirds offset, negative space ratio, leading lines, frame-within-frame.',
+  'node.09.guide': '[Purpose] Film-wide style prefix + post-processing filter parameters.\n[Basic] Global style/negative prompts, LUT color grading description.\n[Advanced] Film grain, vignette, hue shift, warm/contrast/vintage/cinematic/dream style vectors (0–1).',
+  'node.10.guide': '[Purpose] Scene object layout, camera position, three-point lighting.\n[Basic] Objects list, camera position/target, key light type and color temp.\n[Advanced] Key/fill/rim intensity, angle, softness, ambient level, Key:Fill ratio.',
+  'node.11.guide': '[Purpose] Import reference image → auto-extract VDL photometric params → deviation comparison → prompt correction.\n[Basic] Upload reference image, select generator, set seed.\n[Advanced] Review detected kelvin/palette/contrast/saturation, ΔKelvin/ΔE deviations, write prompt corrections.',
+  'node.12.guide': '[Purpose] Import reference video → per-frame sampling → kelvin drift / palette consistency / motion detection → prompt correction.\n[Basic] Segment ID, duration, select video generator.\n[Advanced] Review frames sampled, kelvin drift ±K, palette consistency, motion pattern match, transition type, write video prompt corrections.',
+  'node.13.guide': '[Purpose] 6-axis metric scan → deviation measurement → feedback correction nodes.\n[Basic] Enter ΔKelvin, ΔE color, CLIP similarity.\n[Advanced] Enter YOLO object recall, depth correlation, NDF T delta, specify feedback nodes.',
+  'node.14.guide': '[Purpose] Film DNA drift detection → correction vectors → cross-scene continuity validation.\n[Basic] Review cumulative drift % and film continuity status.\n[Advanced] Review per-axis drift (ΔKelvin/ΔEV/ΔContrast/ΔSaturation), correction rate, stitch gaps, write stitch notes.',
 };
