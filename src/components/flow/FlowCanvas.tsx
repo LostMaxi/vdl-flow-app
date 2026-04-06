@@ -1,9 +1,10 @@
 // ◎ 2026-04-06 — FlowCanvas: React Flow 畫布容器
 // 14 節點視覺化管線圖 + MiniMap + Controls
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   ReactFlow,
+  ReactFlowProvider,
   MiniMap,
   Controls,
   Background,
@@ -64,7 +65,7 @@ export function FlowCanvas({
   const [edges, , onEdgesChange] = useEdgesState(initialEdges);
 
   // 同步 VDL 狀態到 React Flow 節點 data
-  useMemo(() => {
+  useEffect(() => {
     setNodes(prev => prev.map(node => {
       const nodeDef = nodeDefs.find(nd => nd.id === node.id);
       const idx = nodeDefs.findIndex(nd => nd.id === node.id);
@@ -103,51 +104,53 @@ export function FlowCanvas({
   }, []);
 
   return (
-    <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      onNodeClick={handleNodeClick}
-      onPaneClick={handlePaneClick}
-      nodeTypes={nodeTypes}
-      fitView
-      fitViewOptions={{ padding: 0.2 }}
-      minZoom={0.3}
-      maxZoom={2}
-      proOptions={{ hideAttribution: true }}
-      style={{ background: C.bg }}
-      nodesDraggable={true}
-      nodesConnectable={false}
-      elementsSelectable={true}
-      panOnScroll={true}
-      zoomOnScroll={true}
-    >
-      <Background
-        variant={BackgroundVariant.Dots}
-        gap={20}
-        size={1}
-        color={C.grid}
-      />
-      <MiniMap
-        nodeColor={minimapNodeColor}
-        maskColor="rgba(0,0,0,0.7)"
-        style={{
-          background: C.minimap,
-          borderRadius: 4,
-          border: `1px solid ${C.muted}`,
-        }}
-        pannable
-        zoomable
-      />
-      <Controls
-        showInteractive={false}
-        style={{
-          borderRadius: 4,
-          border: `1px solid ${C.muted}`,
-          background: '#1C1C1C',
-        }}
-      />
-    </ReactFlow>
+    <ReactFlowProvider>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onNodeClick={handleNodeClick}
+        onPaneClick={handlePaneClick}
+        nodeTypes={nodeTypes}
+        fitView
+        fitViewOptions={{ padding: 0.2 }}
+        minZoom={0.3}
+        maxZoom={2}
+        proOptions={{ hideAttribution: true }}
+        style={{ background: C.bg }}
+        nodesDraggable={true}
+        nodesConnectable={false}
+        elementsSelectable={true}
+        panOnScroll={true}
+        zoomOnScroll={true}
+      >
+        <Background
+          variant={BackgroundVariant.Dots}
+          gap={20}
+          size={1}
+          color={C.grid}
+        />
+        <MiniMap
+          nodeColor={minimapNodeColor}
+          maskColor="rgba(0,0,0,0.7)"
+          style={{
+            background: C.minimap,
+            borderRadius: 4,
+            border: `1px solid ${C.muted}`,
+          }}
+          pannable
+          zoomable
+        />
+        <Controls
+          showInteractive={false}
+          style={{
+            borderRadius: 4,
+            border: `1px solid ${C.muted}`,
+            background: '#1C1C1C',
+          }}
+        />
+      </ReactFlow>
+    </ReactFlowProvider>
   );
 }
