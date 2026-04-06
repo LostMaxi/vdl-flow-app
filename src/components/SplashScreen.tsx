@@ -14,6 +14,7 @@ interface SplashScreenProps {
   onNewProject: (name?: string) => void;
   onOpenFile: (data: string, fileName: string) => void;
   onContinueProject: (projectId: string) => void;
+  onDeleteProjects: (id: string) => void;
   onDriveOpen: (fileId: string, fileName: string) => void;
   onDriveListRequest: () => Promise<void>;
 }
@@ -24,10 +25,32 @@ export function SplashScreen({
   onNewProject,
   onOpenFile,
   onContinueProject,
+  onDeleteProjects,
   onDriveOpen,
   onDriveListRequest,
 }: SplashScreenProps) {
   const { t, lang, setLang } = useI18n();
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    setSelected(new Set(recentProjects.map(p => p.id)));
+  }, [recentProjects]);
+
+  const handleDeleteSelected = useCallback(() => {
+    if (selected.size === 0) return;
+    selected.forEach(id => onDeleteProjects(id));
+    setSelected(new Set());
+    setSelectMode(false);
+  }, [selected, onDeleteProjects]);
   const [dragOver, setDragOver] = useState(false);
   const [showDriveFiles, setShowDriveFiles] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -335,38 +358,79 @@ export function SplashScreen({
           marginTop: 36, width: '100%', maxWidth: 500, opacity: 0,
         }}>
           <div style={{
-            fontSize: 10, color: '#63666A', letterSpacing: 2, marginBottom: 10,
-            textTransform: 'uppercase',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            marginBottom: 10,
           }}>
-            {t('splash.recentProjects')}
-          </div>
-          {sorted.map(p => (
-            <div
-              key={p.id}
-              onClick={() => onContinueProject(p.id)}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '10px 14px', marginBottom: 4, cursor: 'pointer',
-                background: '#111', border: '1px solid #222', borderRadius: 2,
-                transition: 'border-color 0.2s',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = '#4C4E56')}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = '#222')}
-            >
-              <div>
-                <div style={{ fontSize: 12, color: '#D9D9D6' }}>{p.name}</div>
-                <div style={{ fontSize: 8, color: '#555', marginTop: 2 }}>
-                  {t('splash.lastEdited')} {new Date(p.updatedAt).toLocaleDateString()} {new Date(p.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </div>
-              </div>
-              <div style={{
-                fontSize: 9, color: '#818387', padding: '3px 10px',
-                border: '1px solid #333', borderRadius: 2,
-              }}>
-                {t('splash.continueProject')}
-              </div>
+            <span style={{ fontSize: 10, color: '#63666A', letterSpacing: 2, textTransform: 'uppercase' }}>
+              {t('splash.recentProjects')}
+            </span>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {selectMode && (
+                <>
+                  <button
+                    onClick={selectAll}
+                    style={{ fontSize: 8, color: '#818387', background: 'none', border: '1px solid #333', borderRadius: 2, padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit' }}
+                  >
+                    {t('splash.selectAll')}
+                  </button>
+                  <button
+                    onClick={handleDeleteSelected}
+                    style={{ fontSize: 8, color: selected.size > 0 ? '#FDDA25' : '#555', background: 'none', border: `1px solid ${selected.size > 0 ? '#FDDA25' : '#333'}`, borderRadius: 2, padding: '2px 8px', cursor: selected.size > 0 ? 'pointer' : 'default', fontFamily: 'inherit' }}
+                  >
+                    {t('splash.deleteSelected', { count: String(selected.size) })}
+                  </button>
+                </>
+              )}
+              <button
+                onClick={() => { setSelectMode(s => !s); setSelected(new Set()); }}
+                style={{ fontSize: 8, color: selectMode ? '#A78BFA' : '#63666A', background: 'none', border: `1px solid ${selectMode ? '#A78BFA' : '#333'}`, borderRadius: 2, padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                {selectMode ? t('splash.cancelSelect') : t('splash.manageProjects')}
+              </button>
             </div>
-          ))}
+          </div>
+          {sorted.map(p => {
+            const isSelected = selected.has(p.id);
+            return (
+              <div
+                key={p.id}
+                onClick={() => selectMode ? toggleSelect(p.id) : onContinueProject(p.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '10px 14px', marginBottom: 4, cursor: 'pointer',
+                  background: isSelected ? '#1a1020' : '#111',
+                  border: `1px solid ${isSelected ? '#A78BFA' : '#222'}`,
+                  borderRadius: 2, transition: 'border-color 0.2s',
+                }}
+                onMouseEnter={e => { if (!selectMode) e.currentTarget.style.borderColor = '#4C4E56'; }}
+                onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = '#222'; }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {selectMode && (
+                    <div style={{
+                      width: 14, height: 14, borderRadius: 2, flexShrink: 0,
+                      border: `1px solid ${isSelected ? '#A78BFA' : '#4C4E56'}`,
+                      background: isSelected ? '#A78BFA' : 'transparent',
+                    }} />
+                  )}
+                  <div>
+                    <div style={{ fontSize: 12, color: '#D9D9D6' }}>{p.name}</div>
+                    <div style={{ fontSize: 8, color: '#555', marginTop: 2 }}>
+                      {t('splash.lastEdited')} {new Date(p.updatedAt).toLocaleDateString()} {new Date(p.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                </div>
+                {!selectMode && (
+                  <div style={{
+                    fontSize: 9, color: '#818387', padding: '3px 10px',
+                    border: '1px solid #333', borderRadius: 2,
+                  }}>
+                    {t('splash.continueProject')}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

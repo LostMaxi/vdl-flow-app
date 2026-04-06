@@ -49,6 +49,10 @@ export const en: Record<string, string> = {
   'splash.driveOpen': 'Open from Google Drive',
   'splash.invalidFile': 'Invalid project file — please select a VDL-FLOW exported .json',
   'splash.lastEdited': 'Last edited',
+  'splash.manageProjects': 'Manage',
+  'splash.cancelSelect': 'Cancel',
+  'splash.selectAll': 'Select All',
+  'splash.deleteSelected': 'Delete ({count})',
 
   // ─── Scene History ─────────────────────────────────────────
   'scene.history': '◎ SCENE HISTORY: {count} shot(s)',

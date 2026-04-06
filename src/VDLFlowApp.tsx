@@ -595,6 +595,7 @@ export default function VDLFlowApp() {
         onNewProject={handleSplashNewProject}
         onOpenFile={handleSplashOpenFile}
         onContinueProject={handleSplashContinue}
+        onDeleteProjects={deleteProject}
         onDriveOpen={handleSplashDriveOpen}
         onDriveListRequest={handleSplashDriveList}
       />

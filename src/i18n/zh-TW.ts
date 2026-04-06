@@ -49,6 +49,10 @@ export const zhTW: Record<string, string> = {
   'splash.driveOpen': '從 Google Drive 開啟',
   'splash.invalidFile': '無效的專案檔案 — 請選擇 VDL-FLOW 匯出的 .json',
   'splash.lastEdited': '上次編輯',
+  'splash.manageProjects': '管理',
+  'splash.cancelSelect': '取消',
+  'splash.selectAll': '全選',
+  'splash.deleteSelected': '刪除 ({count})',
 
   // ─── 場景歷史 ──────────────────────────────────────────────
   'scene.history': '◎ SCENE HISTORY: {count} shot(s)',
