@@ -10,7 +10,7 @@
 import type { CSSProperties } from 'react';
 
 export const styles: Record<string, CSSProperties> = {
-  app:          { display: 'flex', flexDirection: 'column', background: '#1C1C1C', color: '#D9D9D6', fontFamily: "'Inter', 'Noto Sans TC', sans-serif", height: '100vh', overflow: 'hidden' },
+  app:          { display: 'flex', flexDirection: 'column', background: '#1C1C1C', color: '#D9D9D6', fontFamily: "'Inter', 'Noto Sans TC', sans-serif", minHeight: '100vh', overflow: 'auto' },
   header:       { padding: '12px 16px', borderBottom: '1px solid #333', flexShrink: 0 },
   appTitle:     { fontSize: 28, fontWeight: 600, color: '#D9D9D6', margin: 0, letterSpacing: 3 },
   appSub:       { fontSize: 12, color: '#63666A', margin: '6px 0 20px', fontWeight: 300 },

@@ -745,16 +745,15 @@ export default function VDLFlowApp() {
 
       <EnvWarning />
 
-      {/* ─── V3: 垂直分割佈局 — FlowCanvas (上) + EditorPanel (下) ─── */}
+      {/* ─── V3: 1:3:2 垂直三層佈局 — Header(1) + Canvas(3) + Editor(2) ─── */}
       <div style={{
         display: 'flex',
         flexDirection: 'column',
         flex: 1,
         minHeight: 0,
-        overflow: 'hidden',
       }}>
-        {/* 上方：React Flow 視覺化節點圖 */}
-        <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+        {/* 中層 (比例 3)：React Flow 視覺化節點圖 */}
+        <div style={{ flex: 3, position: 'relative', minHeight: '35vh' }}>
           <FlowCanvas
             nodeDefs={NODE_DEFS}
             activeIndex={activeIndex}
@@ -882,14 +881,15 @@ export default function VDLFlowApp() {
           )}
         </div>
 
-        {/* 下方：編輯面板（全寬） */}
+        {/* 下層 (比例 2)：編輯面板（全寬） */}
         <div style={{
-          flex: 1,
+          flex: 2,
           borderTop: '1px solid #333',
           background: '#191919',
-          overflow: 'hidden',
+          overflow: 'auto',
           display: 'flex',
           flexDirection: 'column',
+          minHeight: '25vh',
         }}>
           <EditorPanel
             selectedNodeId={selectedNodeId}
@@ -917,8 +917,8 @@ export default function VDLFlowApp() {
         </div>
       </div>
 
-      {/* ─── 底部面板區（可捲動） ─── */}
-      <div style={{ flexShrink: 0, maxHeight: '35vh', overflowY: 'auto', borderTop: '1px solid #333', padding: '0 16px 40px' }}>
+      {/* ─── 底部面板區 ─── */}
+      <div style={{ flexShrink: 0, borderTop: '1px solid #333', padding: '0 16px 40px' }}>
         {/* ─── 分鏡板 ─── */}
         <Suspense fallback={null}>
           <StoryboardWall shots={shotHistory} genHistory={genHistory} />
