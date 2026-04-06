@@ -23,8 +23,8 @@ export const NODE_HEIGHT = 100;
 // x 軸 = 水平擴展（同層並列）
 // y 軸 = 垂直分層（上游→下游）
 
-const X_GAP = 260;
-const Y_GAP = 160;
+const X_GAP = 320;
+const Y_GAP = 170;
 
 export function getInitialNodes(): Node[] {
   return [

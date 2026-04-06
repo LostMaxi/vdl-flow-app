@@ -46,6 +46,7 @@ export interface EditorPanelProps {
 
   // NodeCard 回呼
   onComplete: (nodeDef: NodeDef, values: Record<string, string | number>) => void;
+  onUndoComplete: (nodeId: string, nodeIndex: number) => void;
   onLockFields: (fields: Record<string, { value: string | number; source: string }>) => void;
   onRemoveLock: (key: string) => void;
 
@@ -84,6 +85,7 @@ export function EditorPanel({
   onFlowModeChange,
   onClose,
   onComplete,
+  onUndoComplete,
   onLockFields,
   onRemoveLock,
   savedPalettes,
@@ -202,7 +204,7 @@ export function EditorPanel({
   const nodeTemplates   = getTemplatesForNode(selectedNodeId);
   const isNodeActive    = selectedIndex === activeIndex;
   const isNodeCompleted = completedNodes.has(selectedNodeId);
-  const showTemplateTrigger = isNodeActive && !isNodeCompleted && onSaveTemplate;
+  const showTemplateTrigger = !!onSaveTemplate;
 
   return (
     <div style={{
@@ -293,31 +295,18 @@ export function EditorPanel({
               ADV
             </button>
           </div>
-          <span style={{
-            fontSize: 9,
-            padding: '2px 8px',
-            borderRadius: 3,
-            background: isNodeCompleted ? C.darkPurple : isNodeActive ? C.purple : C.muted,
-            color: isNodeCompleted ? C.lavender : isNodeActive ? C.bg : C.text,
-            fontWeight: 600,
-            letterSpacing: 0.3,
-          }}>
-            {isNodeCompleted ? 'DONE' : isNodeActive ? 'ACTIVE' : 'LOCKED'}
-          </span>
         </div>
 
-        {/* 快速確認列（ACTIVE 時常駐顯示） */}
+        {/* 動作列：CONFIRM 或 撤回 */}
         {isNodeActive && !isNodeCompleted && (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8, marginTop: 8,
-          }}>
+          <div style={{ padding: '0 16px 8px' }}>
             <button
               onClick={() => {
                 const btn = document.querySelector<HTMLButtonElement>('[data-vdl-confirm]');
                 if (btn) btn.click();
               }}
               style={{
-                flex: 1, fontSize: 11, padding: '8px 0',
+                width: '100%', fontSize: 11, padding: '8px 0',
                 background: C.purple, color: C.bg,
                 border: 'none', borderRadius: 3,
                 cursor: 'pointer', fontFamily: FONT,
@@ -325,6 +314,22 @@ export function EditorPanel({
               }}
             >
               CONFIRM →
+            </button>
+          </div>
+        )}
+        {isNodeCompleted && (
+          <div style={{ padding: '0 16px 8px' }}>
+            <button
+              onClick={() => onUndoComplete(selectedNodeId, selectedIndex)}
+              style={{
+                width: '100%', fontSize: 10, padding: '6px 0',
+                background: 'transparent', color: C.label,
+                border: `1px solid ${C.border}`, borderRadius: 3,
+                cursor: 'pointer', fontFamily: FONT,
+                fontWeight: 500, letterSpacing: 0.5,
+              }}
+            >
+              ← UNDO CONFIRM
             </button>
           </div>
         )}

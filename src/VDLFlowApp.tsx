@@ -32,7 +32,7 @@ export default function VDLFlowApp() {
     activeIndex, completedNodes, locks, nodeValues, allPrompts, sceneHistory, shotHistory,
     setActiveIndex, addCompletedNode, writeLocks, setNodeValues, setPrompt,
     addSceneToHistory, addQARecord, resetShot, resetFlow,
-    removeLock, savedPalettes, savePalette, deletePalette,
+    removeLock, undoComplete, savedPalettes, savePalette, deletePalette,
     flowMode, setFlowMode,
   } = usePersistentFlow();
 
@@ -831,6 +831,7 @@ export default function VDLFlowApp() {
                 onFlowModeChange={setFlowMode}
                 onClose={() => setSelectedNodeId(null)}
                 onComplete={handleNodeComplete}
+                onUndoComplete={undoComplete}
                 onLockFields={writeLocks}
                 onRemoveLock={removeLock}
                 savedPalettes={savedPalettes}

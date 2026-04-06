@@ -76,6 +76,9 @@ const dataflowEdges: Edge[] = [
   ...e,
   type: 'smoothstep',
   style: EDGE_STYLES.dataflow,
+  labelStyle: { fontSize: 9, fill: '#818387', fontFamily: "'Inter', sans-serif" },
+  labelBgStyle: { fill: '#111', fillOpacity: 0.85, rx: 3 },
+  labelBgPadding: [4, 6] as [number, number],
   deletable: false,
 }));
 

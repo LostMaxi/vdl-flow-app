@@ -173,6 +173,15 @@ export function usePersistentFlow() {
     });
   }, []);
 
+  // 撤回確認：從 completedNodes 移除，activeIndex 回退
+  const undoComplete = useCallback((nodeId: string, nodeIndex: number) => {
+    setState(prev => ({
+      ...prev,
+      completedNodes: prev.completedNodes.filter(id => id !== nodeId),
+      activeIndex: Math.min(nodeIndex, prev.activeIndex),
+    }));
+  }, []);
+
   // Phase 13: 簡易/進階模式切換
   const setFlowMode = useCallback((mode: 'basic' | 'advanced') => {
     setState(prev => ({ ...prev, flowMode: mode }));
@@ -199,6 +208,7 @@ export function usePersistentFlow() {
     shotHistory:  state.shotHistory  ?? [],     // Phase 11 P3/P4
     addQARecord,                                // Phase 11 P3/P4
     resetShot,                                  // Phase 10 P2
+    undoComplete,                               // 撤回確認
     removeLock,                                 // P4: 解鎖按鈕
     savedPalettes: state.savedPalettes ?? [],   // P2: 色票組
     savePalette,                                // P2: 儲存色票組
