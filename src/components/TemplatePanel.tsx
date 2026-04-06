@@ -211,18 +211,18 @@ const TemplatePanel: React.FC<TemplatePanelProps> = ({
   // ─── 樣式物件 ────────────────────────────────────────────
   const styles = {
     container: {
-      width: 200,
       fontFamily: C.font,
       fontSize: 11,
       color: C.text,
       backgroundColor: C.appBg,
-      borderLeft: `1px solid ${C.border}`,
+      border: `1px solid ${C.border}`,
+      borderRadius: 4,
       padding: 8,
       display: 'flex',
       flexDirection: 'column' as const,
       gap: 6,
+      maxHeight: 260,
       overflowY: 'auto' as const,
-      maxHeight: '100%',
     },
     header: {
       fontSize: 12,

@@ -2,8 +2,9 @@
 // 選中節點時顯示完整 NodeCard + 子面板（CameraHUD / LightingRig / Template）
 // 未選中時顯示專案總覽
 
-import { lazy, Suspense, useMemo } from 'react';
+import { lazy, Suspense, useMemo, useState, useCallback } from 'react';
 import { NodeCard } from '../NodeCard';
+import TemplatePanel from '../TemplatePanel';
 import type { NodeDef, LockEntry } from '../../types/vdl';
 import type { NodeTemplate } from '../../types/filmDNA';
 import type { ShotRecord } from '../../hooks/usePersistentFlow';
@@ -59,6 +60,9 @@ export interface EditorPanelProps {
   onSaveTemplate: (template: Omit<NodeTemplate, 'id' | 'createdAt'>) => NodeTemplate;
   onRemoveTemplate: (templateId: string) => void;
 
+  // 模板套用 → 寫入 nodeValues
+  onApplyTemplateValues: (nodeId: string, values: Record<string, string | number>) => void;
+
   // 專案資訊
   projectName: string;
   sceneCount: number;
@@ -85,10 +89,14 @@ export function EditorPanel({
   getTemplatesForNode,
   onSaveTemplate,
   onRemoveTemplate,
+  onApplyTemplateValues,
   projectName,
   sceneCount,
   shotCount,
 }: EditorPanelProps) {
+
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [templateVersion, setTemplateVersion] = useState(0);
 
   const selectedDef = useMemo(() =>
     nodeDefs.find(n => n.id === selectedNodeId) ?? null,
@@ -169,6 +177,25 @@ export function EditorPanel({
   const nodeTemplates   = getTemplatesForNode(selectedNodeId);
   const isNodeActive    = selectedIndex === activeIndex;
   const isNodeCompleted = completedNodes.has(selectedNodeId);
+  const showTemplateTrigger = isNodeActive && !isNodeCompleted && onSaveTemplate;
+
+  // 模板套用：寫入 nodeValues → 透過 key 強制 NodeCard 重新掛載
+  const handleApplyTemplate = useCallback((templateValues: Record<string, string>) => {
+    if (!selectedNodeId) return;
+    const merged: Record<string, string | number> = {
+      ...(nodeValues[selectedNodeId] ?? {}),
+    };
+    Object.entries(templateValues).forEach(([k, v]) => { merged[k] = v; });
+    onApplyTemplateValues(selectedNodeId, merged);
+    setTemplateVersion(v => v + 1);
+    setShowTemplates(false);
+  }, [selectedNodeId, nodeValues, onApplyTemplateValues]);
+
+  // 當前值（供模板儲存用）
+  const currentValuesForTemplate = useMemo(() => {
+    const vals = nodeValues[selectedNodeId] ?? {};
+    return Object.fromEntries(Object.entries(vals).map(([k, v]) => [k, String(v)]));
+  }, [nodeValues, selectedNodeId]);
 
   return (
     <div style={{
@@ -185,43 +212,75 @@ export function EditorPanel({
         zIndex: 10,
         background: C.panelBg,
         borderBottom: `1px solid ${C.border}`,
-        padding: '12px 16px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
+        padding: '10px 16px',
       }}>
-        <span style={{
-          fontSize: 11,
-          fontWeight: 700,
-          color: C.purple,
-          letterSpacing: 0.5,
-        }}>
-          {String(selectedDef.step).padStart(2, '0')}
-        </span>
-        <span style={{
-          fontSize: 14,
-          fontWeight: 600,
-          color: C.white,
-          flex: 1,
-        }}>
-          {selectedDef.title}
-        </span>
-        <span style={{
-          fontSize: 9,
-          padding: '2px 8px',
-          borderRadius: 3,
-          background: isNodeCompleted ? C.darkPurple : isNodeActive ? C.purple : C.muted,
-          color: isNodeCompleted ? C.lavender : isNodeActive ? C.bg : C.text,
-          fontWeight: 600,
-          letterSpacing: 0.3,
-        }}>
-          {isNodeCompleted ? 'DONE' : isNodeActive ? 'ACTIVE' : 'LOCKED'}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: C.purple,
+            letterSpacing: 0.5,
+          }}>
+            {String(selectedDef.step).padStart(2, '0')}
+          </span>
+          <span style={{
+            fontSize: 14,
+            fontWeight: 600,
+            color: C.white,
+            flex: 1,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}>
+            {selectedDef.title}
+          </span>
+          {/* 模板切換按鈕 */}
+          {showTemplateTrigger && (
+            <button
+              onClick={() => setShowTemplates(s => !s)}
+              style={{
+                fontSize: 9, padding: '2px 8px', borderRadius: 3, cursor: 'pointer',
+                fontFamily: FONT, fontWeight: 600, letterSpacing: 0.3,
+                border: `1px solid ${showTemplates ? C.purple : C.border}`,
+                background: showTemplates ? C.darkPurple : 'transparent',
+                color: showTemplates ? C.lavender : C.label,
+              }}
+            >
+              TPL
+            </button>
+          )}
+          <span style={{
+            fontSize: 9,
+            padding: '2px 8px',
+            borderRadius: 3,
+            background: isNodeCompleted ? C.darkPurple : isNodeActive ? C.purple : C.muted,
+            color: isNodeCompleted ? C.lavender : isNodeActive ? C.bg : C.text,
+            fontWeight: 600,
+            letterSpacing: 0.3,
+          }}>
+            {isNodeCompleted ? 'DONE' : isNodeActive ? 'ACTIVE' : 'LOCKED'}
+          </span>
+        </div>
+
+        {/* 模板面板（可摺疊，在標題列下方展開） */}
+        {showTemplates && showTemplateTrigger && (
+          <div style={{ marginTop: 8 }}>
+            <TemplatePanel
+              nodeId={selectedNodeId}
+              currentValues={currentValuesForTemplate}
+              onApplyTemplate={handleApplyTemplate}
+              templates={nodeTemplates}
+              onSaveTemplate={onSaveTemplate!}
+              onRemoveTemplate={onRemoveTemplate!}
+            />
+          </div>
+        )}
       </div>
 
       {/* NodeCard 完整編輯器 */}
       <div style={{ padding: '0 4px' }}>
         <NodeCard
+          key={`${selectedNodeId}-${templateVersion}`}
           nodeDef={selectedDef}
           isActive={isNodeActive}
           isCompleted={isNodeCompleted}
@@ -234,9 +293,6 @@ export function EditorPanel({
           onSavePalette={onSavePalette}
           onDeletePalette={onDeletePalette}
           shotQAHistory={selectedNodeId === 'node_13' ? shotHistory.map(s => s.qaScores) : undefined}
-          templates={nodeTemplates}
-          onSaveTemplate={onSaveTemplate}
-          onRemoveTemplate={onRemoveTemplate}
           flowMode={flowMode}
         />
       </div>

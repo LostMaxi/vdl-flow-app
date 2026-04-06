@@ -908,6 +908,7 @@ export default function VDLFlowApp() {
             getTemplatesForNode={getTemplatesForNode}
             onSaveTemplate={handleSaveTemplate}
             onRemoveTemplate={handleRemoveTemplate}
+            onApplyTemplateValues={setNodeValues}
             projectName={projects.find(p => p.id === activeId)?.name ?? 'VDL-FLOW'}
             sceneCount={sceneHistory.length}
             shotCount={shotHistory.length}

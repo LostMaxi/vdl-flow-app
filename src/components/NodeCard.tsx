@@ -7,7 +7,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { RadarChart } from './RadarChart';
 import { ColorPicker } from './ColorPicker';
-import TemplatePanel from './TemplatePanel';
+// TemplatePanel 已移至 EditorPanel 標題列
 import { paletteDeltaE, rgbToLab } from '../utils/colorScience';
 import { runAutoQA } from '../utils/visionQA';
 import { getRandomWord, getRandomWordsForNode } from '../constants/randomWords';
@@ -507,17 +507,9 @@ export function NodeCard({
   // ─── 檢查是否有任何可骰子的欄位 ──────────────────────────
   const hasAnyDiceable = nodeDef.fields.some(f => canDice(f) && hasDiceBank(f.key));
 
-  // ─── V2: 模板套用回呼 ──────────────────────────────────────
-  const handleApplyTemplate = useCallback((templateValues: Record<string, string>) => {
-    setValues(v => ({ ...v, ...templateValues }));
-  }, []);
-
-  const showTemplatePanel = isActive && !isCompleted && onSaveTemplate;
-
   return (
-    <div ref={cardRef} style={{ ...(isCompleted ? styles.cardDone : styles.cardActive), opacity: 0, display: 'flex', gap: 12 }}>
-      {/* ─── 左欄：主表單 ──────────────────────────────────── */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+    <div ref={cardRef} style={{ ...(isCompleted ? styles.cardDone : styles.cardActive), opacity: 0 }}>
+      <div>
       <div style={styles.cardHeader}>
         <span style={styles.stepBadge}>{t('card.step', { step: String(nodeDef.step) })}</span>
         <h3 style={styles.cardTitle}>{nodeDef.title}</h3>
@@ -862,23 +854,7 @@ export function NodeCard({
           {t('card.confirm')}
         </button>
       )}
-      </div>{/* 左欄結束 */}
-
-      {/* ─── 右欄：模板面板 ────────────────────────────────── */}
-      {showTemplatePanel && (
-        <div style={{ width: 200, flexShrink: 0 }}>
-          <TemplatePanel
-            nodeId={nodeDef.id}
-            currentValues={Object.fromEntries(
-              Object.entries(mergedValues).map(([k, v]) => [k, String(v)])
-            )}
-            onApplyTemplate={handleApplyTemplate}
-            templates={templates}
-            onSaveTemplate={onSaveTemplate!}
-            onRemoveTemplate={onRemoveTemplate!}
-          />
-        </div>
-      )}
+      </div>
     </div>
   );
 }
