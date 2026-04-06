@@ -948,6 +948,7 @@ export default function VDLFlowApp() {
             locks={locks}
             nodeValues={nodeValues}
             flowMode={flowMode}
+            onFlowModeChange={setFlowMode}
             onComplete={handleNodeComplete}
             onLockFields={writeLocks}
             onRemoveLock={removeLock}

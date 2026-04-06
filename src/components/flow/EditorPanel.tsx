@@ -41,6 +41,7 @@ export interface EditorPanelProps {
   locks: Record<string, LockEntry>;
   nodeValues: Record<string, Record<string, string | number>>;
   flowMode: 'basic' | 'advanced';
+  onFlowModeChange: (mode: 'basic' | 'advanced') => void;
 
   // NodeCard 回呼
   onComplete: (nodeDef: NodeDef, values: Record<string, string | number>) => void;
@@ -79,6 +80,7 @@ export function EditorPanel({
   locks,
   nodeValues,
   flowMode,
+  onFlowModeChange,
   onComplete,
   onLockFields,
   onRemoveLock,
@@ -252,6 +254,33 @@ export function EditorPanel({
               TPL
             </button>
           )}
+          {/* BASIC / ADVANCED 切換 */}
+          <div style={{ display: 'flex', gap: 0 }}>
+            <button
+              onClick={() => onFlowModeChange('basic')}
+              style={{
+                fontSize: 8, padding: '2px 6px', borderRadius: '3px 0 0 3px', cursor: 'pointer',
+                fontFamily: FONT, fontWeight: 600, letterSpacing: 0.3,
+                border: `1px solid ${C.border}`,
+                background: flowMode === 'basic' ? C.darkPurple : 'transparent',
+                color: flowMode === 'basic' ? C.lavender : C.label,
+              }}
+            >
+              BASIC
+            </button>
+            <button
+              onClick={() => onFlowModeChange('advanced')}
+              style={{
+                fontSize: 8, padding: '2px 6px', borderRadius: '0 3px 3px 0', cursor: 'pointer',
+                fontFamily: FONT, fontWeight: 600, letterSpacing: 0.3,
+                border: `1px solid ${C.border}`, borderLeft: 'none',
+                background: flowMode === 'advanced' ? C.darkPurple : 'transparent',
+                color: flowMode === 'advanced' ? C.lavender : C.label,
+              }}
+            >
+              ADV
+            </button>
+          </div>
           <span style={{
             fontSize: 9,
             padding: '2px 8px',
@@ -264,6 +293,29 @@ export function EditorPanel({
             {isNodeCompleted ? 'DONE' : isNodeActive ? 'ACTIVE' : 'LOCKED'}
           </span>
         </div>
+
+        {/* 快速確認列（ACTIVE 時常駐顯示） */}
+        {isNodeActive && !isNodeCompleted && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8, marginTop: 8,
+          }}>
+            <button
+              onClick={() => {
+                const btn = document.querySelector<HTMLButtonElement>('[data-vdl-confirm]');
+                if (btn) btn.click();
+              }}
+              style={{
+                flex: 1, fontSize: 11, padding: '8px 0',
+                background: C.purple, color: C.bg,
+                border: 'none', borderRadius: 3,
+                cursor: 'pointer', fontFamily: FONT,
+                fontWeight: 600, letterSpacing: 1,
+              }}
+            >
+              CONFIRM →
+            </button>
+          </div>
+        )}
 
         {/* 模板面板（可摺疊，在標題列下方展開） */}
         {showTemplates && showTemplateTrigger && (

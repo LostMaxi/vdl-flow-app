@@ -836,6 +836,7 @@ export function NodeCard({
       {!isCompleted && (
         <button
           ref={nextBtnRef}
+          data-vdl-confirm
           onClick={() => {
             if (nextBtnRef.current) {
               anime({
