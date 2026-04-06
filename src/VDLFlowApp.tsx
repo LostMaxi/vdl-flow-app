@@ -17,7 +17,6 @@ import { anime } from './hooks/useAnime';
 import { useI18n } from './i18n/context';
 import { useGoogleDrive } from './hooks/useGoogleDrive';
 import { SplashScreen } from './components/SplashScreen';
-import { ReactFlowProvider } from '@xyflow/react';
 import { FlowCanvas } from './components/flow/FlowCanvas';
 import { EditorPanel } from './components/flow/EditorPanel';
 import type { NodeDef } from './types/vdl';
@@ -782,8 +781,7 @@ export default function VDLFlowApp() {
 
       <EnvWarning />
 
-      {/* ─── V7: ReactFlowProvider 提升 + 隱藏滾軸 + 圓點導航 ─── */}
-      <ReactFlowProvider>
+      {/* ─── V7: 隱藏滾軸 + 圓點導航 ─── */}
       <div
         ref={scrollContainerRef}
         onScroll={handleScrollSnap}
@@ -1094,7 +1092,6 @@ export default function VDLFlowApp() {
       )}
       </div>{/* 底部面板區關閉 */}
       </div>{/* scroll container 關閉 */}
-      </ReactFlowProvider>
 
       {/* ─── 右側圓點導航 ─── */}
       <div style={{
