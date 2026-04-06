@@ -7,17 +7,19 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+  componentStack: string | null;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false, error: null };
+  state: State = { hasError: false, error: null, componentStack: null };
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('[VDL-FLOW] Uncaught error:', error, info.componentStack);
+    this.setState({ componentStack: info.componentStack ?? null });
   }
 
   render() {
@@ -43,6 +45,16 @@ export class ErrorBoundary extends Component<Props, State> {
         }}>
           {this.state.error?.message}
         </pre>
+        {this.state.componentStack && (
+          <pre style={{
+            fontSize: 10, color: '#63666A', background: '#111',
+            padding: 12, borderRadius: 3, textAlign: 'left',
+            whiteSpace: 'pre-wrap', wordBreak: 'break-all', marginBottom: 20,
+            maxHeight: 300, overflowY: 'auto',
+          }}>
+            {this.state.componentStack}
+          </pre>
+        )}
         <button
           onClick={() => window.location.reload()}
           style={{
