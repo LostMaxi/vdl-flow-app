@@ -17,6 +17,7 @@ import { anime } from './hooks/useAnime';
 import { useI18n } from './i18n/context';
 import { useGoogleDrive } from './hooks/useGoogleDrive';
 import { SplashScreen } from './components/SplashScreen';
+import { ReactFlowProvider } from '@xyflow/react';
 import { FlowCanvas } from './components/flow/FlowCanvas';
 import { EditorPanel } from './components/flow/EditorPanel';
 import type { NodeDef } from './types/vdl';
@@ -48,7 +49,18 @@ export default function VDLFlowApp() {
   const [filmReport, setFilmReport] = useState<{ valid: boolean; snapshotCount: number; gaps: StitchResult['gaps'] } | null>(null);
   const [qaRetryCount, setQaRetryCount] = useState(0);
   const [qaHumanReview, setQaHumanReview] = useState(false);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedNodeId, setSelectedNodeIdRaw] = useState<string | null>(null);
+  const setSelectedNodeId = useCallback((id: string | null) => {
+    setSelectedNodeIdRaw(id);
+    if (id) {
+      // 選取節點 → 自動滾到編輯器區
+      requestAnimationFrame(() => {
+        scrollContainerRef.current
+          ?.querySelector<HTMLElement>('[data-section="editor"]')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+  }, []);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const footerRef = useRef<HTMLElement>(null);
   const copiedAllRef = useRef<HTMLButtonElement>(null);
@@ -770,10 +782,12 @@ export default function VDLFlowApp() {
 
       <EnvWarning />
 
-      {/* ─── V6: 程式化捲動導航（不使用 CSS scroll-snap，避免與 React Flow portal 衝突）─── */}
+      {/* ─── V7: ReactFlowProvider 提升 + 隱藏滾軸 + 圓點導航 ─── */}
+      <ReactFlowProvider>
       <div
         ref={scrollContainerRef}
         onScroll={handleScrollSnap}
+        className="vdl-scroll-hide"
         style={{
           flex: 1,
           minHeight: 0,
@@ -1080,6 +1094,7 @@ export default function VDLFlowApp() {
       )}
       </div>{/* 底部面板區關閉 */}
       </div>{/* scroll container 關閉 */}
+      </ReactFlowProvider>
 
       {/* ─── 右側圓點導航 ─── */}
       <div style={{

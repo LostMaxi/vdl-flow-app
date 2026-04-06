@@ -4,7 +4,6 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import {
   ReactFlow,
-  ReactFlowProvider,
   MiniMap,
   Controls,
   Background,
@@ -104,7 +103,6 @@ export function FlowCanvas({
   }, []);
 
   return (
-    <ReactFlowProvider>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -151,6 +149,5 @@ export function FlowCanvas({
           }}
         />
       </ReactFlow>
-    </ReactFlowProvider>
   );
 }
