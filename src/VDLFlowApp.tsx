@@ -745,15 +745,19 @@ export default function VDLFlowApp() {
 
       <EnvWarning />
 
-      {/* ─── V3: 1:3:2 垂直三層佈局 — Header(1) + Canvas(3) + Editor(2) ─── */}
+      {/* ─── V4: scroll-snap 垂直佈局 — Canvas + Editor 滾動跳轉 ─── */}
       <div style={{
-        display: 'flex',
-        flexDirection: 'column',
         flex: 1,
         minHeight: 0,
+        overflowY: 'auto',
+        scrollSnapType: 'y mandatory' as React.CSSProperties['scrollSnapType'],
       }}>
-        {/* 中層 (比例 3)：React Flow 視覺化節點圖 */}
-        <div style={{ flex: 3, position: 'relative', minHeight: '35vh' }}>
+        {/* 畫布區 — 佔滿可視區域，scroll-snap 原點 */}
+        <div style={{
+          height: 'calc(100vh - 160px)',
+          position: 'relative',
+          scrollSnapAlign: 'start',
+        }}>
           <FlowCanvas
             nodeDefs={NODE_DEFS}
             activeIndex={activeIndex}
@@ -881,15 +885,14 @@ export default function VDLFlowApp() {
           )}
         </div>
 
-        {/* 下層 (比例 2)：編輯面板（全寬） */}
+        {/* 編輯面板（全寬）— scroll-snap 第二區 */}
         <div style={{
-          flex: 2,
+          minHeight: 'calc(100vh - 160px)',
           borderTop: '1px solid #333',
           background: '#191919',
-          overflow: 'auto',
           display: 'flex',
           flexDirection: 'column',
-          minHeight: '25vh',
+          scrollSnapAlign: 'start',
         }}>
           <EditorPanel
             selectedNodeId={selectedNodeId}
@@ -918,7 +921,7 @@ export default function VDLFlowApp() {
       </div>
 
       {/* ─── 底部面板區 ─── */}
-      <div style={{ flexShrink: 0, borderTop: '1px solid #333', padding: '0 16px 40px' }}>
+      <div style={{ flexShrink: 0, borderTop: '1px solid #333', padding: '0 16px 40px', scrollSnapAlign: 'start' }}>
         {/* ─── 分鏡板 ─── */}
         <Suspense fallback={null}>
           <StoryboardWall shots={shotHistory} genHistory={genHistory} />
