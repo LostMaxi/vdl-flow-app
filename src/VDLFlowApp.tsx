@@ -53,6 +53,30 @@ export default function VDLFlowApp() {
   const footerRef = useRef<HTMLElement>(null);
   const copiedAllRef = useRef<HTMLButtonElement>(null);
   const headerRef = useRef<HTMLElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [activeSection, setActiveSection] = useState(0);
+
+  const SECTION_LABELS = ['Canvas', 'Editor', 'Tools'];
+
+  const handleScrollSnap = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const sections = el.querySelectorAll<HTMLElement>('[data-section]');
+    let closest = 0;
+    let minDist = Infinity;
+    sections.forEach((sec, i) => {
+      const dist = Math.abs(sec.offsetTop - el.scrollTop);
+      if (dist < minDist) { minDist = dist; closest = i; }
+    });
+    setActiveSection(closest);
+  }, []);
+
+  const scrollToSection = useCallback((index: number) => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const sections = el.querySelectorAll<HTMLElement>('[data-section]');
+    sections[index]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
 
   const allDone = completedNodes.size === NODE_DEFS.length;
 
@@ -745,19 +769,30 @@ export default function VDLFlowApp() {
 
       <EnvWarning />
 
-      {/* ─── V4: scroll-snap 垂直佈局 — Canvas + Editor 滾動跳轉 ─── */}
-      <div style={{
-        flex: 1,
-        minHeight: 0,
-        overflowY: 'auto',
-        scrollSnapType: 'y mandatory' as React.CSSProperties['scrollSnapType'],
-      }}>
-        {/* 畫布區 — 佔滿可視區域，scroll-snap 原點 */}
-        <div style={{
-          height: 'calc(100vh - 160px)',
+      {/* ─── V5: scroll-snap + 右側圓點導航 ─── */}
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScrollSnap}
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          scrollSnapType: 'y mandatory',
+          scrollBehavior: 'smooth',
           position: 'relative',
-          scrollSnapAlign: 'start',
-        }}>
+        } as React.CSSProperties}
+      >
+        {/* 畫布區 — 填滿捲動容器可視高度 */}
+        <div
+          data-section="canvas"
+          style={{
+            height: 'calc(100vh - 160px)',
+            minHeight: 400,
+            position: 'relative',
+            scrollSnapAlign: 'start',
+          }}
+        >
           <FlowCanvas
             nodeDefs={NODE_DEFS}
             activeIndex={activeIndex}
@@ -886,14 +921,17 @@ export default function VDLFlowApp() {
         </div>
 
         {/* 編輯面板（全寬）— scroll-snap 第二區 */}
-        <div style={{
-          minHeight: 'calc(100vh - 160px)',
-          borderTop: '1px solid #333',
-          background: '#191919',
-          display: 'flex',
-          flexDirection: 'column',
-          scrollSnapAlign: 'start',
-        }}>
+        <div
+          data-section="editor"
+          style={{
+            minHeight: 'calc(100vh - 160px)',
+            borderTop: '1px solid #333',
+            background: '#191919',
+            display: 'flex',
+            flexDirection: 'column',
+            scrollSnapAlign: 'start',
+          }}
+        >
           <EditorPanel
             selectedNodeId={selectedNodeId}
             nodeDefs={NODE_DEFS}
@@ -918,10 +956,9 @@ export default function VDLFlowApp() {
             shotCount={shotHistory.length}
           />
         </div>
-      </div>
 
-      {/* ─── 底部面板區 ─── */}
-      <div style={{ flexShrink: 0, borderTop: '1px solid #333', padding: '0 16px 40px', scrollSnapAlign: 'start' }}>
+      {/* ─── 底部面板區 (scroll-snap 第三區) ─── */}
+      <div data-section="tools" style={{ flexShrink: 0, borderTop: '1px solid #333', padding: '0 16px 40px', scrollSnapAlign: 'start' }}>
         {/* ─── 分鏡板 ─── */}
         <Suspense fallback={null}>
           <StoryboardWall shots={shotHistory} genHistory={genHistory} />
@@ -1046,6 +1083,37 @@ export default function VDLFlowApp() {
         </footer>
       )}
       </div>{/* 底部面板區關閉 */}
+      </div>{/* scroll container 關閉 */}
+
+      {/* ─── 右側圓點導航 ─── */}
+      <div style={{
+        position: 'fixed',
+        right: 12,
+        top: '50%',
+        transform: 'translateY(-50%)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+        zIndex: 100,
+      }}>
+        {SECTION_LABELS.map((label, i) => (
+          <button
+            key={label}
+            onClick={() => scrollToSection(i)}
+            title={label}
+            style={{
+              width: activeSection === i ? 10 : 6,
+              height: activeSection === i ? 10 : 6,
+              borderRadius: '50%',
+              border: 'none',
+              background: activeSection === i ? '#A78BFA' : '#4C4E56',
+              cursor: 'pointer',
+              padding: 0,
+              transition: 'all 0.2s ease',
+            }}
+          />
+        ))}
+      </div>
     </div>
   );
 }
