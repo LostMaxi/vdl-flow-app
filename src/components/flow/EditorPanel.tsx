@@ -108,6 +108,27 @@ export function EditorPanel({
     [nodeDefs, selectedDef],
   );
 
+  // 模板套用：寫入 nodeValues → 透過 key 強制 NodeCard 重新掛載
+  // ⚠ 必須在 early return 之前，遵守 Rules of Hooks
+  const handleApplyTemplate = useCallback((templateValues: Record<string, string>) => {
+    if (!selectedNodeId) return;
+    const merged: Record<string, string | number> = {
+      ...(nodeValues[selectedNodeId] ?? {}),
+    };
+    Object.entries(templateValues).forEach(([k, v]) => { merged[k] = v; });
+    onApplyTemplateValues(selectedNodeId, merged);
+    setTemplateVersion(v => v + 1);
+    setShowTemplates(false);
+  }, [selectedNodeId, nodeValues, onApplyTemplateValues]);
+
+  // 當前值（供模板儲存用）
+  // ⚠ 必須在 early return 之前，遵守 Rules of Hooks
+  const currentValuesForTemplate = useMemo(() => {
+    if (!selectedNodeId) return {};
+    const vals = nodeValues[selectedNodeId] ?? {};
+    return Object.fromEntries(Object.entries(vals).map(([k, v]) => [k, String(v)]));
+  }, [nodeValues, selectedNodeId]);
+
   // ─── 無選中節點：顯示專案總覽 ──────────────────────────────
   if (!selectedDef || !selectedNodeId) {
     return (
@@ -178,24 +199,6 @@ export function EditorPanel({
   const isNodeActive    = selectedIndex === activeIndex;
   const isNodeCompleted = completedNodes.has(selectedNodeId);
   const showTemplateTrigger = isNodeActive && !isNodeCompleted && onSaveTemplate;
-
-  // 模板套用：寫入 nodeValues → 透過 key 強制 NodeCard 重新掛載
-  const handleApplyTemplate = useCallback((templateValues: Record<string, string>) => {
-    if (!selectedNodeId) return;
-    const merged: Record<string, string | number> = {
-      ...(nodeValues[selectedNodeId] ?? {}),
-    };
-    Object.entries(templateValues).forEach(([k, v]) => { merged[k] = v; });
-    onApplyTemplateValues(selectedNodeId, merged);
-    setTemplateVersion(v => v + 1);
-    setShowTemplates(false);
-  }, [selectedNodeId, nodeValues, onApplyTemplateValues]);
-
-  // 當前值（供模板儲存用）
-  const currentValuesForTemplate = useMemo(() => {
-    const vals = nodeValues[selectedNodeId] ?? {};
-    return Object.fromEntries(Object.entries(vals).map(([k, v]) => [k, String(v)]));
-  }, [nodeValues, selectedNodeId]);
 
   return (
     <div style={{
