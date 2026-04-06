@@ -27,25 +27,37 @@ const TERM_MAP: Record<string, string> = {
   'cinematic': '電影感', 'vintage': '復古', 'warm': '暖調', 'cool': '冷調',
   'color grading': '調色', 'LUT': '色彩查找表',
   // NDF
-  'tension': '張力', 'emotion': '情緒', 'information': '資訊密度', 'char focus': '角色聚焦',
+  'tension': '張力', 'information': '資訊密度', 'char focus': '角色聚焦',
+  // 完整句型（優先匹配）
+  'emotional journey': '情緒弧線', 'visual style': '視覺風格',
+  'target audience': '目標觀眾', 'animated film': '動畫影片',
+  'negative prompt': '負面提示詞',
   // 通用
+  'emotion': '情緒', 'emotional': '情緒性的',
   'duration': '長度', 'scene': '場景', 'shot': '鏡頭', 'character': '角色',
   'creature': '生物', 'object': '物品', 'subject': '主體',
-  'style': '風格', 'negative prompt': '負面提示詞', 'prompt': '提示詞',
+  'style': '風格', 'prompt': '提示詞',
   'animation': '動畫', 'render': '渲染', 'composition': '構圖',
   'palette': '調色板', 'aperture': '光圈', 'focal length': '焦距',
   'dutch angle': 'Dutch 傾斜', 'bullet time': '子彈時間',
+  // 句型模板
+  'Create a': '製作一部', 'moves from': '從', 'about': '關於',
 };
 
 // ─── 快速術語替換（不需 API）──────────────────────────────────
 
 export function quickTermTranslate(text: string): string {
-  let result = text;
+  // 先清除 undefined / null 殘留
+  let result = text
+    .replace(/\bundefined\b/g, '（未填）')
+    .replace(/\bnull\b/g, '（未填）');
   // 按長度降序排列，確保長詞優先匹配
   const sortedTerms = Object.entries(TERM_MAP)
     .sort((a, b) => b[0].length - a[0].length);
   for (const [en, zh] of sortedTerms) {
-    const regex = new RegExp(en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    // 使用 word boundary 防止 "emotion" 匹配 "emotional" 的前綴
+    const escaped = en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`\\b${escaped}\\b`, 'gi');
     result = result.replace(regex, zh);
   }
   return result;

@@ -3,6 +3,10 @@
 import type { NodeDef } from '../types/vdl';
 import type { TFunction } from '../i18n/context';
 
+// promptTemplate 安全取值：undefined/空 → '—'
+const V = (val: string | number | undefined): string =>
+  (val === undefined || val === null || val === '') ? '—' : String(val);
+
 // ─── 主要匯出：getNodeDefs(t) ──────────────────────────────
 
 export function getNodeDefs(t: TFunction): NodeDef[] {
@@ -25,9 +29,10 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
       ],
       locks: ['style_keywords', 'emotion_start', 'emotion_end', 'theme_core'],
       promptTemplate: (v) =>
-        `Create a ${v.total_duration}s animated film about "${v.theme_core}". ` +
-        `The emotional journey moves from ${v.emotion_start} to ${v.emotion_end}. ` +
-        `Visual style: ${v.style_keywords}. Target audience: ${v.target_audience}.`
+        `Create a ${V(v.total_duration) === '—' ? '120' : V(v.total_duration)}s animated film about "${V(v.theme_core)}". ` +
+        `The emotional journey moves from ${V(v.emotion_start)} to ${V(v.emotion_end)}. ` +
+        `Visual style: ${V(v.style_keywords)}.` +
+        (v.target_audience ? ` Target audience: ${V(v.target_audience)}.` : '')
     },
 
     // ═══════════════════════════════════════════════════════════
@@ -49,9 +54,9 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
       ],
       locks: ['dominant_palette', 'kelvin_min', 'kelvin_max', 'material_keywords'],
       promptTemplate: (v) =>
-        `World setting: ${v.time_period}, ${v.location_type}. ` +
-        `Environment defined by ${v.material_keywords}, color palette [${v.dominant_palette}], ` +
-        `color temperature range ${v.kelvin_min}K–${v.kelvin_max}K, ${v.atmosphere}.`
+        `World setting: ${V(v.time_period)}, ${V(v.location_type)}. ` +
+        `Environment defined by ${V(v.material_keywords)}, color palette [${V(v.dominant_palette)}], ` +
+        `color temperature range ${V(v.kelvin_min)}K–${V(v.kelvin_max)}K, ${V(v.atmosphere)}.`
     },
 
     // ═══════════════════════════════════════════════════════════
@@ -92,19 +97,19 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
       promptTemplate: (v) => {
         const type = String(v.subject_type || '');
         if (type.includes('生物') || type.toLowerCase().includes('creature')) {
-          return `Creature "${v.creature_name}": ${v.creature_species}, ${v.creature_size}, ` +
-            `color ${v.creature_color}, texture: ${v.creature_texture}. ` +
-            `Motion: ${v.creature_motion}. Accent color ${v.char_accent}. ` +
-            `Distinguishing: ${v.char_feature}.`;
+          return `Creature "${V(v.creature_name)}": ${V(v.creature_species)}, ${V(v.creature_size)}, ` +
+            `color ${V(v.creature_color)}, texture: ${V(v.creature_texture)}. ` +
+            `Motion: ${V(v.creature_motion)}. Accent color ${V(v.char_accent)}. ` +
+            `Distinguishing: ${V(v.char_feature)}.`;
         }
         if (type.includes('物品') || type.toLowerCase().includes('object')) {
-          return `Object "${v.obj_name}": ${v.obj_material}, ${v.obj_size}, ` +
-            `color ${v.obj_color}. Detail: ${v.obj_detail}. ` +
-            `Accent color ${v.char_accent}. Distinguishing: ${v.char_feature}.`;
+          return `Object "${V(v.obj_name)}": ${V(v.obj_material)}, ${V(v.obj_size)}, ` +
+            `color ${V(v.obj_color)}. Detail: ${V(v.obj_detail)}. ` +
+            `Accent color ${V(v.char_accent)}. Distinguishing: ${V(v.char_feature)}.`;
         }
-        return `Character "${v.char_name}": ${v.char_age}, ${v.char_hair}, skin tone ${v.char_skin}, ` +
-          `wearing ${v.char_clothing}, accent color ${v.char_accent}. ` +
-          `Distinguishing: ${v.char_feature}.`;
+        return `Character "${V(v.char_name)}": ${V(v.char_age)}, ${V(v.char_hair)}, skin tone ${V(v.char_skin)}, ` +
+          `wearing ${V(v.char_clothing)}, accent color ${V(v.char_accent)}. ` +
+          `Distinguishing: ${V(v.char_feature)}.`;
       }
     },
 
@@ -128,9 +133,9 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
       ],
       locks: ['scene_id', 'scene_location', 'ndf_T', 'ndf_E'],
       promptTemplate: (v) =>
-        `Scene ${v.scene_id}: ${v.scene_location}. ` +
-        `${v.action_desc} ${v.dialogue} ` +
-        `Mood: ${v.emotion_tag}. NDF targets: T=${v.ndf_T}, E=${v.ndf_E}. Duration: ${v.scene_duration}s.`
+        `Scene ${V(v.scene_id)}: ${V(v.scene_location)}. ` +
+        `${V(v.action_desc)} ${V(v.dialogue)} ` +
+        `Mood: ${V(v.emotion_tag)}. NDF targets: T=${V(v.ndf_T)}, E=${V(v.ndf_E)}. Duration: ${V(v.scene_duration)}s.`
     },
 
     // ═══════════════════════════════════════════════════════════
@@ -155,8 +160,8 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
       promptTemplate: (v) => {
         const te = (Number(v.T_end) * Number(v.E_end)).toFixed(3);
         const pass = Number(te) >= 0.35;
-        return `NDF curve: T=${v.T_start}→${v.T_end} (${v.T_easing}), ` +
-          `E=${v.E_start}→${v.E_end}, I=${v.I_start}→${v.I_end}, C_end=${v.C_end}. ` +
+        return `NDF curve: T=${V(v.T_start)}→${V(v.T_end)} (${V(v.T_easing)}), ` +
+          `E=${V(v.E_start)}→${V(v.E_end)}, I=${V(v.I_start)}→${V(v.I_end)}, C_end=${V(v.C_end)}. ` +
           `Validation: T×E=${te} ${pass ? t('field.node05.passThreshold') : t('field.node05.failThreshold')}`;
       }
     },
@@ -183,9 +188,9 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
       ],
       locks: ['kelvin', 'ev', 'contrast', 'saturation', 'shadowLift'],
       promptTemplate: (v) =>
-        `${v.env_prompt} Key light: ${v.key_light}. ` +
-        `Color temperature ${v.kelvin}K, EV ${v.ev}, contrast ${v.contrast}, saturation ${v.saturation}, shadow lift ${v.shadowLift}. ` +
-        `Depth: ${v.foreground} in front, ${v.midground} center, ${v.background} behind.`
+        `${V(v.env_prompt)} Key light: ${V(v.key_light)}. ` +
+        `Color temperature ${V(v.kelvin)}K, EV ${V(v.ev)}, contrast ${V(v.contrast)}, saturation ${V(v.saturation)}, shadow lift ${V(v.shadowLift)}. ` +
+        `Depth: ${V(v.foreground)} in front, ${V(v.midground)} center, ${V(v.background)} behind.`
     },
 
     // ═══════════════════════════════════════════════════════════
@@ -229,14 +234,14 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
       ],
       locks: ['shot_id', 'focal_mm', 'aperture', 'movement_type'],
       promptTemplate: (v) => {
-        let prompt = `${v.shot_type} shot, ${v.focal_mm}mm f/${v.aperture}, ${v.movement_type} at ${v.movement_speed} speed.`;
+        let prompt = `${V(v.shot_type)} shot, ${V(v.focal_mm)}mm f/${V(v.aperture)}, ${V(v.movement_type)} at ${V(v.movement_speed)} speed.`;
         if (Number(v.dutch_angle) !== 0) {
-          prompt += ` Dutch angle: ${v.dutch_angle}°.`;
+          prompt += ` Dutch angle: ${V(v.dutch_angle)}°.`;
         }
-        prompt += ` Camera height: ${v.cam_height}m.`;
+        prompt += ` Camera height: ${V(v.cam_height)}m.`;
         const mt = String(v.movement_type || '').toLowerCase();
         if (mt.includes('orbit')) {
-          prompt += ` Orbit: ${v.orbit_start_angle}°→${v.orbit_end_angle}° ${v.orbit_direction}, time scale ${v.time_scale}x.`;
+          prompt += ` Orbit: ${V(v.orbit_start_angle)}°→${V(v.orbit_end_angle)}° ${V(v.orbit_direction)}, time scale ${V(v.time_scale)}x.`;
         }
         return prompt;
       }
@@ -262,10 +267,10 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
       ],
       locks: ['rule_of_thirds', 'depth_layers', 'negative_space'],
       promptTemplate: (v) =>
-        `Composition: rule-of-thirds offset ${v.rule_of_thirds}, ${v.depth_layers} depth layers, ` +
-        `${v.negative_space} negative space ratio. Subject at ${v.subject_position}. ` +
-        `Character action: ${v.char_action}. ` +
-        `Leading lines: ${v.leading_lines}. Frame-within-frame: ${v.frame_within_frame}.`
+        `Composition: rule-of-thirds offset ${V(v.rule_of_thirds)}, ${V(v.depth_layers)} depth layers, ` +
+        `${V(v.negative_space)} negative space ratio. Subject at ${V(v.subject_position)}. ` +
+        `Character action: ${V(v.char_action)}. ` +
+        `Leading lines: ${V(v.leading_lines)}. Frame-within-frame: ${V(v.frame_within_frame)}.`
     },
 
     // ═══════════════════════════════════════════════════════════
@@ -292,10 +297,10 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
       locks: ['global_style', 'global_negative', 'lut_desc', 'grain', 'vignette', 'hue_shift', 'style_warm', 'style_contrast', 'style_vintage', 'style_cinematic', 'style_dream'],
       promptTemplate: (v) =>
         `[STYLE LOCK PREFIX]\n` +
-        `${v.global_style} Color grading: ${v.lut_desc}. ` +
-        `Film grain ${v.grain}, vignette ${v.vignette}, hue shift ${v.hue_shift}°.\n` +
-        `Style vector: warm=${v.style_warm}, contrast=${v.style_contrast}, vintage=${v.style_vintage}, cinematic=${v.style_cinematic}, dream=${v.style_dream}.\n` +
-        `Negative: ${v.global_negative}`
+        `${V(v.global_style)} Color grading: ${V(v.lut_desc)}. ` +
+        `Film grain ${V(v.grain)}, vignette ${V(v.vignette)}, hue shift ${V(v.hue_shift)}°.\n` +
+        `Style vector: warm=${V(v.style_warm)}, contrast=${V(v.style_contrast)}, vintage=${V(v.style_vintage)}, cinematic=${V(v.style_cinematic)}, dream=${V(v.style_dream)}.\n` +
+        `Negative: ${V(v.global_negative)}`
     },
 
     // ═══════════════════════════════════════════════════════════
@@ -324,11 +329,11 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
       ],
       locks: [],
       promptTemplate: (v) =>
-        `3D blockout: ${v.objects}. ` +
-        `Camera at (${v.cam_pos}) looking at (${v.cam_target}). ` +
-        `Key light: ${v.key_light_type} ${v.key_light_kelvin}K, intensity ${v.key_light_intensity}%, angle ${v.key_light_angle}°, ${v.key_light_softness}. ` +
-        `Fill: ${v.fill_intensity}%, Rim: ${v.rim_intensity}%, Ambient: ${v.ambient_level}%. ` +
-        `Key:Fill ratio = ${v.key_fill_ratio}:1. ` +
+        `3D blockout: ${V(v.objects)}. ` +
+        `Camera at (${V(v.cam_pos)}) looking at (${V(v.cam_target)}). ` +
+        `Key light: ${V(v.key_light_type)} ${V(v.key_light_kelvin)}K, intensity ${V(v.key_light_intensity)}%, angle ${V(v.key_light_angle)}°, ${V(v.key_light_softness)}. ` +
+        `Fill: ${V(v.fill_intensity)}%, Rim: ${V(v.rim_intensity)}%, Ambient: ${V(v.ambient_level)}%. ` +
+        `Key:Fill ratio = ${V(v.key_fill_ratio)}:1. ` +
         `All objects white material, no textures. Focus on spatial composition, depth layering, and lighting.`
     },
 
@@ -359,11 +364,11 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
         const style   = L.global_style?.value ? `[STYLE] ${L.global_style.value}\n` : '';
         const targetK = L.kelvin?.value ?? 'N/A';
         const targetP = L.dominant_palette?.value ?? 'N/A';
-        const correction = v.prompt_correction ? `\n[CORRECTION] ${v.prompt_correction}` : '';
-        return `[REF IMAGE ANALYSIS — ${v.shot_ref}]\n${style}` +
-          `[DETECTED] Kelvin: ${v.detected_kelvin} | Palette: [${v.detected_palette}] | Contrast: ${v.detected_contrast} | Sat: ${v.detected_saturation}\n` +
+        const correction = v.prompt_correction ? `\n[CORRECTION] ${V(v.prompt_correction)}` : '';
+        return `[REF IMAGE ANALYSIS — ${V(v.shot_ref)}]\n${style}` +
+          `[DETECTED] Kelvin: ${V(v.detected_kelvin)} | Palette: [${V(v.detected_palette)}] | Contrast: ${V(v.detected_contrast)} | Sat: ${V(v.detected_saturation)}\n` +
           `[TARGET] Kelvin: ${targetK} | Palette: [${targetP}]\n` +
-          `[DEVIATION] ΔK=${v.delta_kelvin_ref} ${Number(v.delta_kelvin_ref) > 500 ? '⚠' : '✓'} | ΔE=${v.delta_palette_ref} ${Number(v.delta_palette_ref) > 3.0 ? '⚠' : '✓'}${correction}`;
+          `[DEVIATION] ΔK=${V(v.delta_kelvin_ref)} ${Number(v.delta_kelvin_ref) > 500 ? '⚠' : '✓'} | ΔE=${V(v.delta_palette_ref)} ${Number(v.delta_palette_ref) > 3.0 ? '⚠' : '✓'}${correction}`;
       }
     },
 
@@ -393,11 +398,11 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
         const L = locks ?? {};
         const style          = L.global_style?.value ? `[STYLE] ${L.global_style.value}\n` : '';
         const targetMovement = L.movement_type?.value ?? L.movement?.value ?? 'N/A';
-        const correction     = v.prompt_correction ? `\n[CORRECTION] ${v.prompt_correction}` : '';
-        return `[REF VIDEO ANALYSIS — ${v.seg_id} — ${v.seg_duration}s]\n${style}` +
-          `[SAMPLED] ${v.frames_sampled} frames | Kelvin drift: ±${v.kelvin_drift}K | Palette consistency: ${v.palette_consistency}\n` +
-          `[MOTION] Detected: ${v.motion_pattern} | Target: ${targetMovement} | Match: ${v.movement_match}\n` +
-          `[TRANSITION] ${v.transition}${correction}`;
+        const correction     = v.prompt_correction ? `\n[CORRECTION] ${V(v.prompt_correction)}` : '';
+        return `[REF VIDEO ANALYSIS — ${V(v.seg_id)} — ${V(v.seg_duration)}s]\n${style}` +
+          `[SAMPLED] ${V(v.frames_sampled)} frames | Kelvin drift: ±${V(v.kelvin_drift)}K | Palette consistency: ${V(v.palette_consistency)}\n` +
+          `[MOTION] Detected: ${V(v.motion_pattern)} | Target: ${targetMovement} | Match: ${V(v.movement_match)}\n` +
+          `[TRANSITION] ${V(v.transition)}${correction}`;
       }
     },
 
@@ -431,12 +436,12 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
           Number(v.ndf_delta)     <= 0.10;
         return (
           `[QA REPORT]\n` +
-          `ΔKelvin: ${v.delta_kelvin} ${Number(v.delta_kelvin)  <= 800  ? '✓' : '✗(>800)'}\n` +
-          `ΔE Color: ${v.delta_e_color} ${Number(v.delta_e_color) <= 3.0  ? '✓' : '✗(>3.0)'}\n` +
-          `CLIP Sim: ${v.clip_sim} ${Number(v.clip_sim)      >= 0.85 ? '✓' : '✗(<0.85)'}\n` +
-          `Obj Recall: ${v.obj_recall} ${Number(v.obj_recall)    >= 0.80 ? '✓' : '✗(<0.80)'}\n` +
-          `Depth Corr: ${v.depth_corr} ${Number(v.depth_corr)    >= 0.75 ? '✓' : '✗(<0.75)'}\n` +
-          `NDF Delta: ${v.ndf_delta} ${Number(v.ndf_delta)     <= 0.10 ? '✓' : '✗(>0.10)'}\n` +
+          `ΔKelvin: ${V(v.delta_kelvin)} ${Number(v.delta_kelvin)  <= 800  ? '✓' : '✗(>800)'}\n` +
+          `ΔE Color: ${V(v.delta_e_color)} ${Number(v.delta_e_color) <= 3.0  ? '✓' : '✗(>3.0)'}\n` +
+          `CLIP Sim: ${V(v.clip_sim)} ${Number(v.clip_sim)      >= 0.85 ? '✓' : '✗(<0.85)'}\n` +
+          `Obj Recall: ${V(v.obj_recall)} ${Number(v.obj_recall)    >= 0.80 ? '✓' : '✗(<0.80)'}\n` +
+          `Depth Corr: ${V(v.depth_corr)} ${Number(v.depth_corr)    >= 0.75 ? '✓' : '✗(<0.75)'}\n` +
+          `NDF Delta: ${V(v.ndf_delta)} ${Number(v.ndf_delta)     <= 0.10 ? '✓' : '✗(>0.10)'}\n` +
           `─────────────────────\n` +
           `${pass ? t('qa.report.status.pass') : t('qa.report.status.fail', { nodes: String(v.fail_nodes || t('qa.report.status.failPlaceholder')) })}`
         );
@@ -466,10 +471,10 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
       locks: [],
       promptTemplate: (v) =>
         `[FILM STITCH REPORT]\n` +
-        `Drift from Film DNA mean — Kelvin: ${v.drift_kelvin}K, EV: ${v.drift_ev}, Contrast: ${v.drift_contrast}, Saturation: ${v.drift_saturation}\n` +
-        `Cumulative drift: ${v.cumulative_drift_pct}%\n` +
-        `Correction rate: ${v.correction_rate}\n` +
-        `Stitch gaps: ${v.stitch_gaps} | Continuity: ${v.film_continuity}\n` +
+        `Drift from Film DNA mean — Kelvin: ${V(v.drift_kelvin)}K, EV: ${V(v.drift_ev)}, Contrast: ${V(v.drift_contrast)}, Saturation: ${V(v.drift_saturation)}\n` +
+        `Cumulative drift: ${V(v.cumulative_drift_pct)}%\n` +
+        `Correction rate: ${V(v.correction_rate)}\n` +
+        `Stitch gaps: ${V(v.stitch_gaps)} | Continuity: ${V(v.film_continuity)}\n` +
         `Notes: ${v.film_notes || 'none'}`
     }
   ];
