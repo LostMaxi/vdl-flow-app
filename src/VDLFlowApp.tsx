@@ -48,18 +48,7 @@ export default function VDLFlowApp() {
   const [filmReport, setFilmReport] = useState<{ valid: boolean; snapshotCount: number; gaps: StitchResult['gaps'] } | null>(null);
   const [qaRetryCount, setQaRetryCount] = useState(0);
   const [qaHumanReview, setQaHumanReview] = useState(false);
-  const [selectedNodeId, setSelectedNodeIdRaw] = useState<string | null>(null);
-  const setSelectedNodeId = useCallback((id: string | null) => {
-    setSelectedNodeIdRaw(id);
-    if (id) {
-      // 選取節點 → 自動滾到編輯器區
-      requestAnimationFrame(() => {
-        scrollContainerRef.current
-          ?.querySelector<HTMLElement>('[data-section="editor"]')
-          ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-    }
-  }, []);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const footerRef = useRef<HTMLElement>(null);
   const copiedAllRef = useRef<HTMLButtonElement>(null);
@@ -67,7 +56,7 @@ export default function VDLFlowApp() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [activeSection, setActiveSection] = useState(0);
 
-  const SECTION_LABELS = ['Canvas', 'Editor', 'Tools'];
+  const SECTION_LABELS = ['Canvas', 'Tools'];
 
   const handleScrollSnap = useCallback(() => {
     const el = scrollContainerRef.current;
@@ -811,36 +800,48 @@ export default function VDLFlowApp() {
             onNodeSelect={setSelectedNodeId}
           />
 
-          {/* 畫布內疊加：模式切換 */}
-          <div style={{
-            position: 'absolute', top: 12, right: 12, zIndex: 10,
-            display: 'flex', gap: 4,
-          }}>
-            <button
-              onClick={() => setFlowMode('basic')}
+          {/* 畫布內浮動編輯面板（右側） */}
+          {selectedNodeId && (
+            <div
+              className="vdl-scroll-hide"
               style={{
-                fontSize: 9, padding: '4px 10px', borderRadius: '3px 0 0 3px', cursor: 'pointer',
-                border: '1px solid #4C4E56', fontFamily: "'Inter', 'Noto Sans TC', sans-serif",
-                background: flowMode === 'basic' ? '#2A1A4A' : '#1C1C1C',
-                color: flowMode === 'basic' ? '#DFCEEA' : '#818387',
-                letterSpacing: 0.5, fontWeight: 600,
+                position: 'absolute', top: 0, right: 0, bottom: 0,
+                width: 420, maxWidth: '50%',
+                zIndex: 20,
+                background: '#191919ee',
+                backdropFilter: 'blur(12px)',
+                borderLeft: '1px solid #4C4E56',
+                overflowY: 'auto',
+                overflowX: 'hidden',
               }}
             >
-              BASIC
-            </button>
-            <button
-              onClick={() => setFlowMode('advanced')}
-              style={{
-                fontSize: 9, padding: '4px 10px', borderRadius: '0 3px 3px 0', cursor: 'pointer',
-                border: '1px solid #4C4E56', borderLeft: 'none', fontFamily: "'Inter', 'Noto Sans TC', sans-serif",
-                background: flowMode === 'advanced' ? '#2A1A4A' : '#1C1C1C',
-                color: flowMode === 'advanced' ? '#DFCEEA' : '#818387',
-                letterSpacing: 0.5, fontWeight: 600,
-              }}
-            >
-              ADVANCED
-            </button>
-          </div>
+              <EditorPanel
+                selectedNodeId={selectedNodeId}
+                nodeDefs={NODE_DEFS}
+                activeIndex={activeIndex}
+                completedNodes={completedNodes}
+                locks={locks}
+                nodeValues={nodeValues}
+                flowMode={flowMode}
+                onFlowModeChange={setFlowMode}
+                onClose={() => setSelectedNodeId(null)}
+                onComplete={handleNodeComplete}
+                onLockFields={writeLocks}
+                onRemoveLock={removeLock}
+                savedPalettes={savedPalettes}
+                onSavePalette={savePalette}
+                onDeletePalette={deletePalette}
+                shotHistory={shotHistory}
+                getTemplatesForNode={getTemplatesForNode}
+                onSaveTemplate={handleSaveTemplate}
+                onRemoveTemplate={handleRemoveTemplate}
+                onApplyTemplateValues={setNodeValues}
+                projectName={projects.find(p => p.id === activeId)?.name ?? 'VDL-FLOW'}
+                sceneCount={sceneHistory.length}
+                shotCount={shotHistory.length}
+              />
+            </div>
+          )}
 
           {/* 畫布內疊加：A2 跨場景報告 */}
           {stitchReport && (
@@ -929,44 +930,7 @@ export default function VDLFlowApp() {
           )}
         </div>
 
-        {/* 編輯面板（全寬）— scroll-snap 第二區 */}
-        <div
-          data-section="editor"
-          style={{
-            minHeight: 'calc(100vh - 160px)',
-            borderTop: '1px solid #333',
-            background: '#191919',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          <EditorPanel
-            selectedNodeId={selectedNodeId}
-            nodeDefs={NODE_DEFS}
-            activeIndex={activeIndex}
-            completedNodes={completedNodes}
-            locks={locks}
-            nodeValues={nodeValues}
-            flowMode={flowMode}
-            onFlowModeChange={setFlowMode}
-            onComplete={handleNodeComplete}
-            onLockFields={writeLocks}
-            onRemoveLock={removeLock}
-            savedPalettes={savedPalettes}
-            onSavePalette={savePalette}
-            onDeletePalette={deletePalette}
-            shotHistory={shotHistory}
-            getTemplatesForNode={getTemplatesForNode}
-            onSaveTemplate={handleSaveTemplate}
-            onRemoveTemplate={handleRemoveTemplate}
-            onApplyTemplateValues={setNodeValues}
-            projectName={projects.find(p => p.id === activeId)?.name ?? 'VDL-FLOW'}
-            sceneCount={sceneHistory.length}
-            shotCount={shotHistory.length}
-          />
-        </div>
-
-      {/* ─── 底部面板區 (scroll-snap 第三區) ─── */}
+      {/* ─── 底部面板區 ─── */}
       <div data-section="tools" style={{ flexShrink: 0, borderTop: '1px solid #333', padding: '0 16px 40px' }}>
         {/* ─── 分鏡板 ─── */}
         <Suspense fallback={null}>

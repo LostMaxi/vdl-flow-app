@@ -42,6 +42,7 @@ export interface EditorPanelProps {
   nodeValues: Record<string, Record<string, string | number>>;
   flowMode: 'basic' | 'advanced';
   onFlowModeChange: (mode: 'basic' | 'advanced') => void;
+  onClose: () => void;
 
   // NodeCard 回呼
   onComplete: (nodeDef: NodeDef, values: Record<string, string | number>) => void;
@@ -81,6 +82,7 @@ export function EditorPanel({
   nodeValues,
   flowMode,
   onFlowModeChange,
+  onClose,
   onComplete,
   onLockFields,
   onRemoveLock,
@@ -204,22 +206,32 @@ export function EditorPanel({
 
   return (
     <div style={{
-      height: '100%',
-      overflowY: 'auto',
-      overflowX: 'hidden',
       fontFamily: FONT,
-      background: C.panelBg,
     }}>
       {/* 節點標題列 */}
       <div style={{
         position: 'sticky',
         top: 0,
         zIndex: 10,
-        background: C.panelBg,
+        background: '#191919ee',
+        backdropFilter: 'blur(12px)',
         borderBottom: `1px solid ${C.border}`,
         padding: '10px 16px',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={onClose}
+            style={{
+              width: 22, height: 22, borderRadius: 3,
+              border: `1px solid ${C.border}`, background: 'transparent',
+              color: C.label, fontSize: 13, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: FONT, flexShrink: 0,
+            }}
+            title="Close"
+          >
+            ×
+          </button>
           <span style={{
             fontSize: 11,
             fontWeight: 700,
