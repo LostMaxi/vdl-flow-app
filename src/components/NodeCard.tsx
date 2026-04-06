@@ -7,12 +7,14 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { RadarChart } from './RadarChart';
 import { ColorPicker } from './ColorPicker';
+import TemplatePanel from './TemplatePanel';
 import { paletteDeltaE, rgbToLab } from '../utils/colorScience';
 import { runAutoQA } from '../utils/visionQA';
 import { getRandomWord, getRandomWordsForNode } from '../constants/randomWords';
 import { styles } from '../styles/theme';
 import { anime } from '../hooks/useAnime';
 import { useI18n } from '../i18n/context';
+import { quickTermTranslate, translateWithGemini } from '../utils/promptTranslator';
 import type { NodeCardProps } from '../types/vdl';
 
 // ─── 影像主色 → Kelvin 萃取（canvas 取樣，無需後端）────────
@@ -127,10 +129,13 @@ export function NodeCard({
   onComplete, onLockFields, onRemoveLock,
   savedPalettes = [], onSavePalette, onDeletePalette,
   shotQAHistory = [],
+  templates = [], onSaveTemplate, onRemoveTemplate,
 }: NodeCardProps) {
   const { t } = useI18n();
   const [values, setValues] = useState<Record<string, string | number>>(initialValues ?? {});
   const [copied, setCopied] = useState(false);
+  const [translatedPrompt, setTranslatedPrompt] = useState<string | null>(null);
+  const [translating, setTranslating] = useState(false);
   const imgInputRef    = useRef<HTMLInputElement>(null);
   const aiImgInputRef  = useRef<HTMLInputElement>(null);
   const canvasRef      = useRef<HTMLCanvasElement>(null);
@@ -221,10 +226,10 @@ export function NodeCard({
     });
   }, [isActive, isCompleted]);
 
-  // NODE 12 上傳渲染截圖 → 自動計算 ΔKelvin + NDF Delta
+  // NODE 13 上傳渲染截圖 → 自動計算 ΔKelvin + NDF Delta
   const handleImageAnalysis = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || nodeDef.id !== 'node_12') return;
+    if (!file || nodeDef.id !== 'node_13') return;
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
@@ -249,7 +254,7 @@ export function NodeCard({
   // AI 全掃描 — CLIP + YOLO + Depth
   const handleAIScan = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || nodeDef.id !== 'node_12') return;
+    if (!file || nodeDef.id !== 'node_13') return;
     setAiStatus('loading');
     setAiProgress('準備中…');
     const imageUrl = URL.createObjectURL(file);
@@ -273,9 +278,9 @@ export function NodeCard({
     }
   }, [nodeDef.id, locks]);
 
-  // NODE 12: 當兩個調色板欄位填入後，自動計算 paletteDeltaE
+  // NODE 13: 當兩個調色板欄位填入後，自動計算 paletteDeltaE
   useEffect(() => {
-    if (nodeDef.id !== 'node_12') return;
+    if (nodeDef.id !== 'node_13') return;
     const rp = String(values.rendered_palette ?? '');
     const tp = String(values.target_palette   ?? '');
     if (!rp || !tp) return;
@@ -306,7 +311,7 @@ export function NodeCard({
   // ─── NODE 10: 參考圖分析 ────────────────────────────────────
   const handleRefImageAnalysis = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || nodeDef.id !== 'node_10') return;
+    if (!file || nodeDef.id !== 'node_11') return;
     setAnalysisStatus('loading');
     const url = URL.createObjectURL(file);
     setRefPreviewUrl(url);
@@ -356,7 +361,7 @@ export function NodeCard({
   // ─── NODE 11: 參考影片分析 ─────────────────────────────────
   const handleRefVideoAnalysis = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || nodeDef.id !== 'node_11') return;
+    if (!file || nodeDef.id !== 'node_12') return;
     setAnalysisStatus('loading');
     const url = URL.createObjectURL(file);
     setRefPreviewUrl(url);
@@ -454,6 +459,32 @@ export function NodeCard({
     });
   };
 
+  // ─── 翻譯提示詞 → 繁體中文 ─────────────────────────────────
+  const handleTranslate = useCallback(async () => {
+    if (translating) return;
+    setTranslating(true);
+    try {
+      const result = await translateWithGemini(generatedPrompt);
+      setTranslatedPrompt(result);
+    } catch {
+      setTranslatedPrompt(quickTermTranslate(generatedPrompt));
+    }
+    setTranslating(false);
+  }, [generatedPrompt, translating]);
+
+  const handleCopyTranslated = useCallback(() => {
+    if (!translatedPrompt) return;
+    navigator.clipboard.writeText(translatedPrompt).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [translatedPrompt]);
+
+  // 提示詞變更時清除翻譯快取
+  useEffect(() => {
+    setTranslatedPrompt(null);
+  }, [generatedPrompt]);
+
   // ─── 判斷欄位是否可用骰子 ─────────────────────────────────
   const canDice = (field: typeof nodeDef.fields[0]) =>
     !field.noDice && field.type !== 'number' && field.type !== 'select' && !field.fieldVariant;
@@ -474,8 +505,17 @@ export function NodeCard({
   // ─── 檢查是否有任何可骰子的欄位 ──────────────────────────
   const hasAnyDiceable = nodeDef.fields.some(f => canDice(f) && hasDiceBank(f.key));
 
+  // ─── V2: 模板套用回呼 ──────────────────────────────────────
+  const handleApplyTemplate = useCallback((templateValues: Record<string, string>) => {
+    setValues(v => ({ ...v, ...templateValues }));
+  }, []);
+
+  const showTemplatePanel = isActive && !isCompleted && onSaveTemplate;
+
   return (
-    <div ref={cardRef} style={{ ...(isCompleted ? styles.cardDone : styles.cardActive), opacity: 0 }}>
+    <div ref={cardRef} style={{ ...(isCompleted ? styles.cardDone : styles.cardActive), opacity: 0, display: 'flex', gap: 12 }}>
+      {/* ─── 左欄：主表單 ──────────────────────────────────── */}
+      <div style={{ flex: 1, minWidth: 0 }}>
       <div style={styles.cardHeader}>
         <span style={styles.stepBadge}>{t('card.step', { step: String(nodeDef.step) })}</span>
         <h3 style={styles.cardTitle}>{nodeDef.title}</h3>
@@ -630,15 +670,43 @@ export function NodeCard({
       <div style={styles.promptBox}>
         <div style={styles.promptLabel}>{t('card.promptLabel')}</div>
         <pre style={styles.promptText}>{generatedPrompt}</pre>
-        <button ref={copyBtnRef} onClick={handleCopy} style={styles.copyBtn}>
-          {copied ? t('card.copied') : t('card.copy')}
-        </button>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+          <button ref={copyBtnRef} onClick={handleCopy} style={styles.copyBtn}>
+            {copied && !translatedPrompt ? t('card.copied') : t('card.copy')}
+          </button>
+          <button
+            onClick={handleTranslate}
+            disabled={translating}
+            style={{
+              ...styles.copyBtn,
+              border: `1px solid ${translatedPrompt ? '#DFCEEA' : '#4C4E56'}`,
+              color: translatedPrompt ? '#DFCEEA' : '#818387',
+              opacity: translating ? 0.5 : 1,
+              cursor: translating ? 'wait' : 'pointer',
+            }}
+          >
+            {translating ? '翻譯中…' : translatedPrompt ? '✓ 已翻譯' : '繁中翻譯'}
+          </button>
+        </div>
+        {/* ─── 翻譯結果 ───────────────────────────────────── */}
+        {translatedPrompt && (
+          <div style={{ marginTop: 10, padding: '10px 12px', background: '#1a1028', border: '1px dashed #2A1A4A', borderRadius: 3 }}>
+            <div style={{ fontSize: 9, color: '#DFCEEA', letterSpacing: 1, marginBottom: 6 }}>◎ 繁體中文翻譯</div>
+            <pre style={{ ...styles.promptText, color: '#DFCEEA' }}>{translatedPrompt}</pre>
+            <button
+              onClick={handleCopyTranslated}
+              style={{ ...styles.copyBtn, border: '1px solid #DFCEEA', color: '#DFCEEA', fontSize: 10 }}
+            >
+              {copied ? '✓ 已複製' : '複製中文版'}
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* ─── NODE 10: 參考圖匯入 + VDL 逆向分析 ──────────────── */}
-      {nodeDef.id === 'node_10' && !isCompleted && (
+      {/* ─── NODE 11: 參考圖匯入 + VDL 逆向分析 ──────────────── */}
+      {nodeDef.id === 'node_11' && !isCompleted && (
         <div style={{ margin: '8px 0', padding: '8px', background: '#222', border: '1px dashed #2A1A4A', borderRadius: 2 }}>
-          <div style={{ fontSize: 9, color: '#D9D9D6', marginBottom: 6, letterSpacing: 1 }}>{t('node10.importTitle')}</div>
+          <div style={{ fontSize: 9, color: '#D9D9D6', marginBottom: 6, letterSpacing: 1 }}>{t('node11.importTitle')}</div>
           <input ref={refImgInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleRefImageAnalysis} />
           <canvas ref={analysisCanvasRef} style={{ display: 'none' }} />
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -651,13 +719,13 @@ export function NodeCard({
                 borderRadius: 2, letterSpacing: 0.5, opacity: analysisStatus === 'loading' ? 0.6 : 1,
               }}
             >
-              {analysisStatus === 'loading' ? t('node10.analyzing') : t('node10.importBtn')}
+              {analysisStatus === 'loading' ? t('node11.analyzing') : t('node11.importBtn')}
             </button>
             {analysisStatus === 'done' && (
-              <span style={{ fontSize: 8, color: '#A78BFA' }}>{t('node10.analysisDone')}</span>
+              <span style={{ fontSize: 8, color: '#A78BFA' }}>{t('node11.analysisDone')}</span>
             )}
             {!locks.kelvin?.value && (
-              <span style={{ fontSize: 8, color: '#555' }}>{t('node10.noTarget')}</span>
+              <span style={{ fontSize: 8, color: '#555' }}>{t('node11.noTarget')}</span>
             )}
           </div>
           {/* 參考圖預覽 */}
@@ -673,10 +741,10 @@ export function NodeCard({
         </div>
       )}
 
-      {/* ─── NODE 11: 參考影片匯入 + 逐幀 VDL 分析 ──────────── */}
-      {nodeDef.id === 'node_11' && !isCompleted && (
+      {/* ─── NODE 12: 參考影片匯入 + 逐幀 VDL 分析 ──────────── */}
+      {nodeDef.id === 'node_12' && !isCompleted && (
         <div style={{ margin: '8px 0', padding: '8px', background: '#222', border: '1px dashed #2A1A4A', borderRadius: 2 }}>
-          <div style={{ fontSize: 9, color: '#D9D9D6', marginBottom: 6, letterSpacing: 1 }}>{t('node11.importTitle')}</div>
+          <div style={{ fontSize: 9, color: '#D9D9D6', marginBottom: 6, letterSpacing: 1 }}>{t('node12.importTitle')}</div>
           <input ref={refVideoInputRef} type="file" accept="video/*" style={{ display: 'none' }} onChange={handleRefVideoAnalysis} />
           <canvas ref={analysisCanvasRef} style={{ display: 'none' }} />
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -689,13 +757,13 @@ export function NodeCard({
                 borderRadius: 2, letterSpacing: 0.5, opacity: analysisStatus === 'loading' ? 0.6 : 1,
               }}
             >
-              {analysisStatus === 'loading' ? t('node11.analyzing') : t('node11.importBtn')}
+              {analysisStatus === 'loading' ? t('node12.analyzing') : t('node12.importBtn')}
             </button>
             {analysisStatus === 'done' && (
-              <span style={{ fontSize: 8, color: '#A78BFA' }}>{t('node11.analysisDone')}</span>
+              <span style={{ fontSize: 8, color: '#A78BFA' }}>{t('node12.analysisDone')}</span>
             )}
             {!locks.movement?.value && (
-              <span style={{ fontSize: 8, color: '#555' }}>{t('node11.noTarget')}</span>
+              <span style={{ fontSize: 8, color: '#555' }}>{t('node12.noTarget')}</span>
             )}
           </div>
           {/* 參考影片預覽 */}
@@ -711,8 +779,8 @@ export function NodeCard({
         </div>
       )}
 
-      {/* ─── NODE 12 QA 區 ──────────────────────────────────── */}
-      {nodeDef.id === 'node_12' && (
+      {/* ─── NODE 13 QA 區 ──────────────────────────────────── */}
+      {nodeDef.id === 'node_13' && (
         <div style={{ margin: '8px 0', padding: '8px', background: '#222', border: '1px dashed #2A1A4A', borderRadius: 2 }}>
           <div style={{ fontSize: 9, color: '#D9D9D6', marginBottom: 6, letterSpacing: 1 }}>{t('qa.uploadTitle')}</div>
           <input ref={imgInputRef}   type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageAnalysis} />
@@ -741,7 +809,7 @@ export function NodeCard({
           {aiStatus === 'idle' && <div style={{ fontSize: 8, color: '#333', marginTop: 4 }}>{t('qa.aiFirstNote')}</div>}
         </div>
       )}
-      {nodeDef.id === 'node_12' && <RadarChart values={mergedValues} history={shotQAHistory} />}
+      {nodeDef.id === 'node_13' && <RadarChart values={mergedValues} history={shotQAHistory} />}
 
       {!isCompleted && (
         <button
@@ -763,6 +831,23 @@ export function NodeCard({
         >
           {t('card.confirm')}
         </button>
+      )}
+      </div>{/* 左欄結束 */}
+
+      {/* ─── 右欄：模板面板 ────────────────────────────────── */}
+      {showTemplatePanel && (
+        <div style={{ width: 200, flexShrink: 0 }}>
+          <TemplatePanel
+            nodeId={nodeDef.id}
+            currentValues={Object.fromEntries(
+              Object.entries(mergedValues).map(([k, v]) => [k, String(v)])
+            )}
+            onApplyTemplate={handleApplyTemplate}
+            templates={templates}
+            onSaveTemplate={onSaveTemplate!}
+            onRemoveTemplate={onRemoveTemplate!}
+          />
+        </div>
       )}
     </div>
   );

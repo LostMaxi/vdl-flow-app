@@ -1,17 +1,20 @@
-// ◎ VDL-FLOW 12 節點定義表 + 生成端選項 (i18n 版)
+// ◎ VDL-FLOW V2 14 節點定義表 + 生成端選項 (i18n 版)
 
 import type { NodeDef } from '../types/vdl';
 import type { TFunction } from '../i18n/context';
 
-// ─── 靜態 NODE_DEFS（向下相容，使用預設中文）────────────────
-// 注意：promptTemplate 產生 AI 提示詞，保持英文不翻譯
+// ─── 主要匯出：getNodeDefs(t) ──────────────────────────────
 
 export function getNodeDefs(t: TFunction): NodeDef[] {
   return [
+    // ═══════════════════════════════════════════════════════════
+    // NODE 01 — Theme Genesis (creative)
+    // ═══════════════════════════════════════════════════════════
     {
       id: 'node_01', step: 1,
       title: t('node.01.title'),
       description: t('node.01.desc'),
+      layer: 'creative',
       fields: [
         { key: 'theme_core',      label: t('field.theme_core.label'),      type: 'textarea', placeholder: t('field.theme_core.placeholder') },
         { key: 'emotion_start',   label: t('field.emotion_start.label'),   type: 'text',     placeholder: t('field.emotion_start.placeholder') },
@@ -26,10 +29,15 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
         `The emotional journey moves from ${v.emotion_start} to ${v.emotion_end}. ` +
         `Visual style: ${v.style_keywords}. Target audience: ${v.target_audience}.`
     },
+
+    // ═══════════════════════════════════════════════════════════
+    // NODE 02 — World Building (creative)
+    // ═══════════════════════════════════════════════════════════
     {
       id: 'node_02', step: 2,
       title: t('node.02.title'),
       description: t('node.02.desc'),
+      layer: 'creative',
       fields: [
         { key: 'time_period',       label: t('field.time_period.label'),       type: 'text',   placeholder: t('field.time_period.placeholder') },
         { key: 'location_type',     label: t('field.location_type.label'),     type: 'text',   placeholder: t('field.location_type.placeholder') },
@@ -45,10 +53,15 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
         `Environment defined by ${v.material_keywords}, color palette [${v.dominant_palette}], ` +
         `color temperature range ${v.kelvin_min}K–${v.kelvin_max}K, ${v.atmosphere}.`
     },
+
+    // ═══════════════════════════════════════════════════════════
+    // NODE 03 — Subject Design (creative)
+    // ═══════════════════════════════════════════════════════════
     {
       id: 'node_03', step: 3,
       title: t('node.03.title'),
       description: t('node.03.desc'),
+      layer: 'creative',
       fields: [
         // ── 主體類型選擇 ──
         { key: 'subject_type', label: t('field.subject_type.label'), type: 'select', placeholder: t('field.subject_type.placeholder'), options: [t('field.subject_type.character'), t('field.subject_type.creature'), t('field.subject_type.object')] },
@@ -94,10 +107,15 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
           `Distinguishing: ${v.char_feature}.`;
       }
     },
+
+    // ═══════════════════════════════════════════════════════════
+    // NODE 04 — Screenplay (narrative)
+    // ═══════════════════════════════════════════════════════════
     {
       id: 'node_04', step: 4,
       title: t('node.04.title'),
       description: t('node.04.desc'),
+      layer: 'narrative',
       fields: [
         { key: 'scene_id',       label: t('field.scene_id.label'),       type: 'text',     placeholder: 'S01' },
         { key: 'scene_location', label: t('field.scene_location.label'), type: 'text',     placeholder: t('field.scene_location.placeholder') },
@@ -114,10 +132,15 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
         `${v.action_desc} ${v.dialogue} ` +
         `Mood: ${v.emotion_tag}. NDF targets: T=${v.ndf_T}, E=${v.ndf_E}. Duration: ${v.scene_duration}s.`
     },
+
+    // ═══════════════════════════════════════════════════════════
+    // NODE 05 — Tension Mapping (narrative)
+    // ═══════════════════════════════════════════════════════════
     {
       id: 'node_05', step: 5,
       title: t('node.05.title'),
       description: t('node.05.desc'),
+      layer: 'narrative',
       fields: [
         { key: 'T_start',  label: t('field.T_start.label'),  type: 'number', placeholder: '0.30' },
         { key: 'T_end',    label: t('field.T_end.label'),    type: 'number', placeholder: '0.65' },
@@ -137,87 +160,186 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
           `Validation: T×E=${te} ${pass ? t('field.node05.passThreshold') : t('field.node05.failThreshold')}`;
       }
     },
+
+    // ═══════════════════════════════════════════════════════════
+    // NODE 06 — Photometric (flow)
+    // ═══════════════════════════════════════════════════════════
     {
       id: 'node_06', step: 6,
       title: t('node.06.title'),
       description: t('node.06.desc'),
+      layer: 'flow',
       fields: [
         { key: 'env_prompt',  label: t('field.env_prompt.label'),  type: 'textarea', placeholder: t('field.env_prompt.placeholder') },
         { key: 'kelvin',      label: t('field.kelvin.label'),      type: 'number',   placeholder: '3800' },
         { key: 'ev',          label: t('field.ev.label'),          type: 'number',   placeholder: '-0.5' },
         { key: 'contrast',    label: t('field.contrast.label'),    type: 'number',   placeholder: '0.72' },
         { key: 'saturation',  label: t('field.saturation.label'),  type: 'number',   placeholder: '0.55' },
+        { key: 'shadowLift',  label: t('field.shadowLift.label'),  type: 'number',   placeholder: '0.03', noDice: true },
         { key: 'foreground',  label: t('field.foreground.label'),  type: 'text',     placeholder: t('field.foreground.placeholder') },
         { key: 'midground',   label: t('field.midground.label'),   type: 'text',     placeholder: t('field.midground.placeholder') },
         { key: 'background',  label: t('field.background.label'),  type: 'text',     placeholder: t('field.background.placeholder') },
         { key: 'key_light',   label: t('field.key_light.label'),   type: 'text',     placeholder: t('field.key_light.placeholder') }
       ],
-      locks: ['kelvin', 'ev', 'contrast', 'saturation'],
+      locks: ['kelvin', 'ev', 'contrast', 'saturation', 'shadowLift'],
       promptTemplate: (v) =>
         `${v.env_prompt} Key light: ${v.key_light}. ` +
-        `Color temperature ${v.kelvin}K, EV ${v.ev}, contrast ${v.contrast}, saturation ${v.saturation}. ` +
+        `Color temperature ${v.kelvin}K, EV ${v.ev}, contrast ${v.contrast}, saturation ${v.saturation}, shadow lift ${v.shadowLift}. ` +
         `Depth: ${v.foreground} in front, ${v.midground} center, ${v.background} behind.`
     },
+
+    // ═══════════════════════════════════════════════════════════
+    // NODE 07 — Camera (flow) [RESTRUCTURED]
+    // ═══════════════════════════════════════════════════════════
     {
       id: 'node_07', step: 7,
       title: t('node.07.title'),
       description: t('node.07.desc'),
+      layer: 'flow',
       fields: [
-        { key: 'shot_id',     label: t('field.shot_id.label'),     type: 'text',   placeholder: 'S01_SH01' },
-        { key: 'shot_type',   label: t('field.shot_type.label'),   type: 'text',   placeholder: t('field.shot_type.placeholder') },
-        { key: 'focal_mm',    label: t('field.focal_mm.label'),    type: 'number', placeholder: '50' },
-        { key: 'aperture',    label: t('field.aperture.label'),    type: 'number', placeholder: '2.0' },
-        { key: 'movement',    label: t('field.movement.label'),    type: 'text',   placeholder: t('field.movement.placeholder') },
-        { key: 'subject_pos', label: t('field.subject_pos.label'), type: 'text',   placeholder: t('field.subject_pos.placeholder') },
-        { key: 'neg_space',   label: t('field.neg_space.label'),   type: 'number', placeholder: '0.35' },
-        { key: 'char_action', label: t('field.char_action.label'), type: 'text',   placeholder: t('field.char_action.placeholder') }
+        { key: 'shot_id',            label: t('field.shot_id.label'),            type: 'text',   placeholder: 'S01_SH01' },
+        { key: 'shot_type',          label: t('field.shot_type.label'),          type: 'select', placeholder: t('field.shot_type.placeholder'),
+          options: [t('field.shot_type.ECU'), t('field.shot_type.CU'), t('field.shot_type.MCU'), t('field.shot_type.MS'), t('field.shot_type.WS'), t('field.shot_type.EWS')] },
+        { key: 'focal_mm',           label: t('field.focal_mm.label'),           type: 'number', placeholder: '35' },
+        { key: 'aperture',           label: t('field.aperture.label'),           type: 'number', placeholder: '2.8' },
+        { key: 'movement_type',      label: t('field.movement_type.label'),      type: 'select', placeholder: t('field.movement_type.placeholder'),
+          options: [
+            t('field.movement_type.static'), t('field.movement_type.dolly_in'), t('field.movement_type.dolly_out'),
+            t('field.movement_type.pan_left'), t('field.movement_type.pan_right'),
+            t('field.movement_type.tilt_up'), t('field.movement_type.tilt_down'),
+            t('field.movement_type.crane_up'), t('field.movement_type.crane_down'),
+            t('field.movement_type.tracking'), t('field.movement_type.orbit_360'), t('field.movement_type.orbit_partial'),
+            t('field.movement_type.vertigo'), t('field.movement_type.whip_pan'),
+            t('field.movement_type.steadicam'), t('field.movement_type.handheld'),
+            t('field.movement_type.drone'), t('field.movement_type.rack_focus')
+          ] },
+        { key: 'movement_speed',     label: t('field.movement_speed.label'),     type: 'select', placeholder: t('field.movement_speed.placeholder'),
+          options: [t('field.movement_speed.slow'), t('field.movement_speed.normal'), t('field.movement_speed.fast')] },
+        { key: 'dutch_angle',        label: t('field.dutch_angle.label'),        type: 'number', placeholder: '0' },
+        { key: 'cam_height',         label: t('field.cam_height.label'),         type: 'number', placeholder: '1.6' },
+        { key: 'orbit_start_angle',  label: t('field.orbit_start_angle.label'),  type: 'number', placeholder: '0',
+          showWhen: { key: 'movement_type', values: [t('field.movement_type.orbit_360'), t('field.movement_type.orbit_partial')] } },
+        { key: 'orbit_end_angle',    label: t('field.orbit_end_angle.label'),    type: 'number', placeholder: '360',
+          showWhen: { key: 'movement_type', values: [t('field.movement_type.orbit_360'), t('field.movement_type.orbit_partial')] } },
+        { key: 'orbit_direction',    label: t('field.orbit_direction.label'),    type: 'select', placeholder: t('field.orbit_direction.placeholder'),
+          options: [t('field.orbit_direction.cw'), t('field.orbit_direction.ccw')],
+          showWhen: { key: 'movement_type', values: [t('field.movement_type.orbit_360'), t('field.movement_type.orbit_partial')] } },
+        { key: 'time_scale',         label: t('field.time_scale.label'),         type: 'number', placeholder: '1.0',
+          showWhen: { key: 'movement_type', values: [t('field.movement_type.orbit_360'), t('field.movement_type.orbit_partial')] } }
       ],
-      locks: ['shot_id'],
-      promptTemplate: (v) =>
-        `${v.shot_type} shot, ${v.focal_mm}mm f/${v.aperture}, shallow depth of field, ${v.movement}. ` +
-        `Subject ${v.subject_pos}, ${v.neg_space} negative space. ` +
-        `Character: ${v.char_action}.`
+      locks: ['shot_id', 'focal_mm', 'aperture', 'movement_type'],
+      promptTemplate: (v) => {
+        let prompt = `${v.shot_type} shot, ${v.focal_mm}mm f/${v.aperture}, ${v.movement_type} at ${v.movement_speed} speed.`;
+        if (Number(v.dutch_angle) !== 0) {
+          prompt += ` Dutch angle: ${v.dutch_angle}°.`;
+        }
+        prompt += ` Camera height: ${v.cam_height}m.`;
+        const mt = String(v.movement_type || '').toLowerCase();
+        if (mt.includes('orbit')) {
+          prompt += ` Orbit: ${v.orbit_start_angle}°→${v.orbit_end_angle}° ${v.orbit_direction}, time scale ${v.time_scale}x.`;
+        }
+        return prompt;
+      }
     },
+
+    // ═══════════════════════════════════════════════════════════
+    // NODE 08 — Composition (flow) [NEW — split from old node_07]
+    // ═══════════════════════════════════════════════════════════
     {
       id: 'node_08', step: 8,
       title: t('node.08.title'),
       description: t('node.08.desc'),
+      layer: 'flow',
       fields: [
-        { key: 'objects',       label: t('field.objects.label'),       type: 'textarea', placeholder: t('field.objects.placeholder') },
-        { key: 'cam_pos',       label: t('field.cam_pos.label'),       type: 'text',     placeholder: '-2, 1.6, -4' },
-        { key: 'cam_target',    label: t('field.cam_target.label'),    type: 'text',     placeholder: '0, 1.2, 0' },
-        { key: 'key_light_pos', label: t('field.key_light_pos.label'), type: 'text',     placeholder: '3, 4, -2' }
+        { key: 'rule_of_thirds',     label: t('field.rule_of_thirds.label'),     type: 'number',   placeholder: '0.5' },
+        { key: 'depth_layers',       label: t('field.depth_layers.label'),       type: 'number',   placeholder: '3' },
+        { key: 'negative_space',     label: t('field.negative_space.label'),     type: 'number',   placeholder: '0.35' },
+        { key: 'subject_position',   label: t('field.subject_position.label'),   type: 'select',   placeholder: t('field.subject_position.placeholder'),
+          options: [t('field.subject_position.center'), t('field.subject_position.thirds_left'), t('field.subject_position.thirds_right'), t('field.subject_position.golden_left'), t('field.subject_position.golden_right')] },
+        { key: 'char_action',        label: t('field.char_action.label'),        type: 'textarea', placeholder: t('field.char_action.placeholder') },
+        { key: 'leading_lines',      label: t('field.leading_lines.label'),      type: 'text',     placeholder: t('field.leading_lines.placeholder') },
+        { key: 'frame_within_frame', label: t('field.frame_within_frame.label'), type: 'text',     placeholder: t('field.frame_within_frame.placeholder') }
       ],
-      locks: [],
+      locks: ['rule_of_thirds', 'depth_layers', 'negative_space'],
       promptTemplate: (v) =>
-        `3D blockout: ${v.objects}. ` +
-        `Camera at (${v.cam_pos}) looking at (${v.cam_target}). ` +
-        `Key light at (${v.key_light_pos}). All objects white material, no textures. ` +
-        `Focus on spatial composition and depth layering only.`
+        `Composition: rule-of-thirds offset ${v.rule_of_thirds}, ${v.depth_layers} depth layers, ` +
+        `${v.negative_space} negative space ratio. Subject at ${v.subject_position}. ` +
+        `Character action: ${v.char_action}. ` +
+        `Leading lines: ${v.leading_lines}. Frame-within-frame: ${v.frame_within_frame}.`
     },
+
+    // ═══════════════════════════════════════════════════════════
+    // NODE 09 — Style & Filter (flow) [EXPANDED]
+    // ═══════════════════════════════════════════════════════════
     {
       id: 'node_09', step: 9,
       title: t('node.09.title'),
       description: t('node.09.desc'),
+      layer: 'flow',
       fields: [
         { key: 'global_style',    label: t('field.global_style.label'),    type: 'textarea', placeholder: t('field.global_style.placeholder') },
         { key: 'global_negative', label: t('field.global_negative.label'), type: 'textarea', placeholder: t('field.global_negative.placeholder') },
         { key: 'lut_desc',        label: t('field.lut_desc.label'),        type: 'text',     placeholder: t('field.lut_desc.placeholder') },
         { key: 'grain',           label: t('field.grain.label'),           type: 'number',   placeholder: '0.03' },
         { key: 'vignette',        label: t('field.vignette.label'),        type: 'number',   placeholder: '0.12' },
-        { key: 'hue_shift',       label: t('field.hue_shift.label'),       type: 'number',   placeholder: '-5' }
+        { key: 'hue_shift',       label: t('field.hue_shift.label'),       type: 'number',   placeholder: '-5' },
+        { key: 'style_warm',      label: t('field.style_warm.label'),      type: 'number',   placeholder: '0.5' },
+        { key: 'style_contrast',  label: t('field.style_contrast.label'),  type: 'number',   placeholder: '0.5' },
+        { key: 'style_vintage',   label: t('field.style_vintage.label'),   type: 'number',   placeholder: '0.0' },
+        { key: 'style_cinematic', label: t('field.style_cinematic.label'), type: 'number',   placeholder: '0.7' },
+        { key: 'style_dream',     label: t('field.style_dream.label'),     type: 'number',   placeholder: '0.0' }
       ],
-      locks: ['global_style', 'global_negative', 'lut_desc', 'grain', 'vignette', 'hue_shift'],
+      locks: ['global_style', 'global_negative', 'lut_desc', 'grain', 'vignette', 'hue_shift', 'style_warm', 'style_contrast', 'style_vintage', 'style_cinematic', 'style_dream'],
       promptTemplate: (v) =>
         `[STYLE LOCK PREFIX]\n` +
         `${v.global_style} Color grading: ${v.lut_desc}. ` +
         `Film grain ${v.grain}, vignette ${v.vignette}, hue shift ${v.hue_shift}°.\n` +
+        `Style vector: warm=${v.style_warm}, contrast=${v.style_contrast}, vintage=${v.style_vintage}, cinematic=${v.style_cinematic}, dream=${v.style_dream}.\n` +
         `Negative: ${v.global_negative}`
     },
+
+    // ═══════════════════════════════════════════════════════════
+    // NODE 10 — 3D Blockout & Lighting (spatial) [EXPANDED]
+    // ═══════════════════════════════════════════════════════════
     {
       id: 'node_10', step: 10,
       title: t('node.10.title'),
       description: t('node.10.desc'),
+      layer: 'spatial',
+      fields: [
+        { key: 'objects',             label: t('field.objects.label'),             type: 'textarea', placeholder: t('field.objects.placeholder') },
+        { key: 'cam_pos',             label: t('field.cam_pos.label'),             type: 'text',     placeholder: '-2, 1.6, -4' },
+        { key: 'cam_target',          label: t('field.cam_target.label'),          type: 'text',     placeholder: '0, 1.2, 0' },
+        { key: 'key_light_type',      label: t('field.key_light_type.label'),      type: 'select',   placeholder: t('field.key_light_type.placeholder'),
+          options: [t('field.key_light_type.point'), t('field.key_light_type.spot'), t('field.key_light_type.area'), t('field.key_light_type.directional')] },
+        { key: 'key_light_kelvin',    label: t('field.key_light_kelvin.label'),    type: 'number',   placeholder: '4000' },
+        { key: 'key_light_intensity', label: t('field.key_light_intensity.label'), type: 'number',   placeholder: '100' },
+        { key: 'key_light_angle',     label: t('field.key_light_angle.label'),     type: 'number',   placeholder: '45' },
+        { key: 'key_light_softness',  label: t('field.key_light_softness.label'),  type: 'select',   placeholder: t('field.key_light_softness.placeholder'),
+          options: [t('field.key_light_softness.hard'), t('field.key_light_softness.soft')] },
+        { key: 'fill_intensity',      label: t('field.fill_intensity.label'),      type: 'number',   placeholder: '35' },
+        { key: 'rim_intensity',       label: t('field.rim_intensity.label'),       type: 'number',   placeholder: '60' },
+        { key: 'ambient_level',       label: t('field.ambient_level.label'),       type: 'number',   placeholder: '15' },
+        { key: 'key_fill_ratio',      label: t('field.key_fill_ratio.label'),      type: 'number',   placeholder: '3.0', autoCompute: true }
+      ],
+      locks: [],
+      promptTemplate: (v) =>
+        `3D blockout: ${v.objects}. ` +
+        `Camera at (${v.cam_pos}) looking at (${v.cam_target}). ` +
+        `Key light: ${v.key_light_type} ${v.key_light_kelvin}K, intensity ${v.key_light_intensity}%, angle ${v.key_light_angle}°, ${v.key_light_softness}. ` +
+        `Fill: ${v.fill_intensity}%, Rim: ${v.rim_intensity}%, Ambient: ${v.ambient_level}%. ` +
+        `Key:Fill ratio = ${v.key_fill_ratio}:1. ` +
+        `All objects white material, no textures. Focus on spatial composition, depth layering, and lighting.`
+    },
+
+    // ═══════════════════════════════════════════════════════════
+    // NODE 11 — Image Generation (generation) [was old node_10]
+    // ═══════════════════════════════════════════════════════════
+    {
+      id: 'node_11', step: 11,
+      title: t('node.11.title'),
+      description: t('node.11.desc'),
+      layer: 'generation',
       fields: [
         { key: 'shot_ref',            label: t('field.shot_ref.label'),            type: 'text',     placeholder: 'S01_SH01' },
         { key: 'detected_kelvin',     label: t('field.detected_kelvin.label'),     type: 'number',   placeholder: '5500' },
@@ -227,8 +349,11 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
         { key: 'delta_kelvin_ref',    label: t('field.delta_kelvin_ref.label'),    type: 'number',   placeholder: '0' },
         { key: 'delta_palette_ref',   label: t('field.delta_palette_ref.label'),   type: 'number',   placeholder: '0' },
         { key: 'prompt_correction',   label: t('field.prompt_correction.label'),   type: 'textarea', placeholder: t('field.prompt_correction.placeholder') },
+        { key: 'generator',           label: t('field.generator.label'),           type: 'select',   placeholder: t('field.generator.placeholder'),
+          options: [t('field.generator.sdxl'), t('field.generator.dalle3'), t('field.generator.midjourney'), t('field.generator.stability')] },
+        { key: 'seed',                label: t('field.seed.label'),                type: 'number',   placeholder: '42' }
       ],
-      locks: ['detected_kelvin', 'detected_palette'],
+      locks: ['detected_kelvin', 'detected_palette', 'seed'],
       promptTemplate: (v, locks) => {
         const L = locks ?? {};
         const style   = L.global_style?.value ? `[STYLE] ${L.global_style.value}\n` : '';
@@ -241,10 +366,15 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
           `[DEVIATION] ΔK=${v.delta_kelvin_ref} ${Number(v.delta_kelvin_ref) > 500 ? '⚠' : '✓'} | ΔE=${v.delta_palette_ref} ${Number(v.delta_palette_ref) > 3.0 ? '⚠' : '✓'}${correction}`;
       }
     },
+
+    // ═══════════════════════════════════════════════════════════
+    // NODE 12 — Video Generation (generation) [was old node_11]
+    // ═══════════════════════════════════════════════════════════
     {
-      id: 'node_11', step: 11,
-      title: t('node.11.title'),
-      description: t('node.11.desc'),
+      id: 'node_12', step: 12,
+      title: t('node.12.title'),
+      description: t('node.12.desc'),
+      layer: 'generation',
       fields: [
         { key: 'seg_id',              label: t('field.seg_id.label'),              type: 'text',     placeholder: 'SEG_001' },
         { key: 'seg_duration',        label: t('field.seg_duration.label'),        type: 'number',   placeholder: '10' },
@@ -255,12 +385,14 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
         { key: 'motion_pattern',      label: t('field.motion_pattern.label'),      type: 'text',     placeholder: t('field.motion_pattern.placeholder') },
         { key: 'movement_match',      label: t('field.movement_match.label'),      type: 'number',   placeholder: '0.85' },
         { key: 'prompt_correction',   label: t('field.prompt_correction_v.label'), type: 'textarea', placeholder: t('field.prompt_correction_v.placeholder') },
+        { key: 'video_gen',           label: t('field.video_gen.label'),           type: 'select',   placeholder: t('field.video_gen.placeholder'),
+          options: [t('field.video_gen.veo'), t('field.video_gen.runway'), t('field.video_gen.kling'), t('field.video_gen.pika')] }
       ],
       locks: [],
       promptTemplate: (v, locks) => {
         const L = locks ?? {};
         const style          = L.global_style?.value ? `[STYLE] ${L.global_style.value}\n` : '';
-        const targetMovement = L.movement?.value ?? 'N/A';
+        const targetMovement = L.movement_type?.value ?? L.movement?.value ?? 'N/A';
         const correction     = v.prompt_correction ? `\n[CORRECTION] ${v.prompt_correction}` : '';
         return `[REF VIDEO ANALYSIS — ${v.seg_id} — ${v.seg_duration}s]\n${style}` +
           `[SAMPLED] ${v.frames_sampled} frames | Kelvin drift: ±${v.kelvin_drift}K | Palette consistency: ${v.palette_consistency}\n` +
@@ -268,10 +400,15 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
           `[TRANSITION] ${v.transition}${correction}`;
       }
     },
+
+    // ═══════════════════════════════════════════════════════════
+    // NODE 13 — QA Validation (validation) [was old node_12]
+    // ═══════════════════════════════════════════════════════════
     {
-      id: 'node_12', step: 12,
-      title: t('node.12.title'),
-      description: t('node.12.desc'),
+      id: 'node_13', step: 13,
+      title: t('node.13.title'),
+      description: t('node.13.desc'),
+      layer: 'validation',
       fields: [
         { key: 'delta_kelvin',     label: t('field.delta_kelvin.label'),     type: 'number', placeholder: '200' },
         { key: 'delta_e_color',    label: t('field.delta_e_color.label'),    type: 'number', placeholder: '1.8' },
@@ -304,6 +441,36 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
           `${pass ? t('qa.report.status.pass') : t('qa.report.status.fail', { nodes: String(v.fail_nodes || t('qa.report.status.failPlaceholder')) })}`
         );
       }
+    },
+
+    // ═══════════════════════════════════════════════════════════
+    // NODE 14 — Film Stitching (validation) [NEW]
+    // ═══════════════════════════════════════════════════════════
+    {
+      id: 'node_14', step: 14,
+      title: t('node.14.title'),
+      description: t('node.14.desc'),
+      layer: 'validation',
+      fields: [
+        { key: 'drift_kelvin',         label: t('field.drift_kelvin.label'),         type: 'number',   placeholder: '0', autoCompute: true },
+        { key: 'drift_ev',             label: t('field.drift_ev.label'),             type: 'number',   placeholder: '0', autoCompute: true },
+        { key: 'drift_contrast',       label: t('field.drift_contrast.label'),       type: 'number',   placeholder: '0', autoCompute: true },
+        { key: 'drift_saturation',     label: t('field.drift_saturation.label'),     type: 'number',   placeholder: '0', autoCompute: true },
+        { key: 'cumulative_drift_pct', label: t('field.cumulative_drift_pct.label'), type: 'number',   placeholder: '0', autoCompute: true },
+        { key: 'correction_rate',      label: t('field.correction_rate.label'),      type: 'number',   placeholder: '0.40' },
+        { key: 'stitch_gaps',          label: t('field.stitch_gaps.label'),          type: 'number',   placeholder: '0', autoCompute: true },
+        { key: 'film_continuity',      label: t('field.film_continuity.label'),      type: 'select',   placeholder: t('field.film_continuity.placeholder'),
+          options: [t('field.film_continuity.continuous'), t('field.film_continuity.gaps_detected'), t('field.film_continuity.needs_correction')] },
+        { key: 'film_notes',           label: t('field.film_notes.label'),           type: 'textarea', placeholder: t('field.film_notes.placeholder') }
+      ],
+      locks: [],
+      promptTemplate: (v) =>
+        `[FILM STITCH REPORT]\n` +
+        `Drift from Film DNA mean — Kelvin: ${v.drift_kelvin}K, EV: ${v.drift_ev}, Contrast: ${v.drift_contrast}, Saturation: ${v.drift_saturation}\n` +
+        `Cumulative drift: ${v.cumulative_drift_pct}%\n` +
+        `Correction rate: ${v.correction_rate}\n` +
+        `Stitch gaps: ${v.stitch_gaps} | Continuity: ${v.film_continuity}\n` +
+        `Notes: ${v.film_notes || 'none'}`
     }
   ];
 }
