@@ -745,15 +745,16 @@ export default function VDLFlowApp() {
 
       <EnvWarning />
 
-      {/* ─── V2: 分割佈局 — FlowCanvas (左60%) + EditorPanel (右40%) ─── */}
+      {/* ─── V3: 垂直分割佈局 — FlowCanvas (上) + EditorPanel (下) ─── */}
       <div style={{
         display: 'flex',
+        flexDirection: 'column',
         flex: 1,
         minHeight: 0,
         overflow: 'hidden',
       }}>
-        {/* 左側：React Flow 視覺化節點圖 */}
-        <div style={{ flex: 6, position: 'relative', minHeight: 0 }}>
+        {/* 上方：React Flow 視覺化節點圖 */}
+        <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
           <FlowCanvas
             nodeDefs={NODE_DEFS}
             activeIndex={activeIndex}
@@ -881,10 +882,10 @@ export default function VDLFlowApp() {
           )}
         </div>
 
-        {/* 右側：編輯面板 */}
+        {/* 下方：編輯面板（全寬） */}
         <div style={{
-          flex: 4,
-          borderLeft: '1px solid #333',
+          flex: 1,
+          borderTop: '1px solid #333',
           background: '#191919',
           overflow: 'hidden',
           display: 'flex',
