@@ -553,7 +553,10 @@ export default function VDLFlowApp() {
     setNodeValues(nodeDef.id, values);
     setPrompt(nodeDef.id, nodeDef.promptTemplate(values, locks));
     addCompletedNode(nodeDef.id);
-    setActiveIndex(i => Math.min(i + 1, NODE_DEFS.length - 1));
+    const nextIdx = Math.min(NODE_DEFS.findIndex(n => n.id === nodeDef.id) + 1, NODE_DEFS.length - 1);
+    setActiveIndex(nextIdx);
+    // 自動跳到下一個 ACTIVE 節點
+    setSelectedNodeId(NODE_DEFS[nextIdx]?.id ?? null);
   }, [writeLocks, addCompletedNode, setActiveIndex, setNodeValues, setPrompt, nodeValues, locks, allPrompts, sceneHistory, shotHistory, addSceneToHistory, addQARecord, setStitchReport, setFilmReport, qaRetryCount]);
 
   const handleCopyAll = () => {
@@ -800,17 +803,19 @@ export default function VDLFlowApp() {
             onNodeSelect={setSelectedNodeId}
           />
 
-          {/* 畫布內浮動編輯面板（右側） */}
+          {/* 畫布內浮動編輯面板（右側 overlay） */}
           {selectedNodeId && (
             <div
               className="vdl-scroll-hide"
               style={{
-                position: 'absolute', top: 0, right: 0, bottom: 0,
-                width: 420, maxWidth: '50%',
+                position: 'absolute', top: 8, right: 8, bottom: 8,
+                width: 380, maxWidth: 'calc(50% - 16px)',
                 zIndex: 20,
                 background: '#191919ee',
-                backdropFilter: 'blur(12px)',
-                borderLeft: '1px solid #4C4E56',
+                backdropFilter: 'blur(16px)',
+                border: '1px solid #4C4E56',
+                borderRadius: 8,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
                 overflowY: 'auto',
                 overflowX: 'hidden',
               }}
