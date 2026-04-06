@@ -23,6 +23,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        skipWaiting: true,           // 新 SW 立即接管，不等待舊 SW 結束
+        clientsClaim: true,          // 接管所有已開啟的分頁
+        navigateFallback: null,      // 不快取 HTML 導航 — 永遠從網路取得
         // 離線快取策略
         runtimeCaching: [
           {
