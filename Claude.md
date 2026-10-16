@@ -16,10 +16,9 @@ npm test             # vitest run (42 tests)
 ## Deployment
 
 - **GitHub**: https://github.com/LostMaxi/vdl-flow-app
-- **Vercel Production**: https://vdl-flow-app.vercel.app
-- **Vercel Team**: `<VERCEL_TEAM_ID>` (LostMaxi's projects)
-- **Vercel Project ID**: `<VERCEL_PROJECT_ID>`
-- **部署方式**: push 到 GitHub main → Vercel CLI `vercel --prod --yes` 手動觸發
+- **Vercel Production**: 已下線（2026-10-16 刪除 Vercel 專案 · 原網址 vdl-flow-app.vercel.app · 共用 GAS 後端同日起刻意關閉）
+- **Vercel 專案**: 已刪除；`.vercel/project.json` 指向的專案已不存在，重新上線要重新 `vercel link`，原子網域可能已被別人註冊
+- **部署方式**: 目前不部署
 - **本地駐點**: `E:\N-Dimensional Bio-inspired Neural Protocol\2-State\VDL-Flow-App`（NDB 主 repo tracked · 2026-07-11 校 · 舊 Creative-Projects/ 路徑已廢）
 - **注意**: 本地為 `N-Dimensional-Bio-Protocol` mono-repo 的子目錄，需 clone `vdl-flow-app` repo 到暫存位置同步後 push
 
