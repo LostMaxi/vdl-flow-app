@@ -51,6 +51,9 @@ const ENV = {
 
 import { generateComfyUI, checkComfyUIHealth } from './comfyuiAPI';
 
+// ─── C4: 全域 fetch 超時常數 ─────────────────────────────────
+const FETCH_TIMEOUT_MS = 30_000; // 30 秒
+
 // ─── 速率限制 + 重試工具 ──────────────────────────────────────
 
 async function withRetry<T>(
@@ -110,6 +113,7 @@ async function generateSDXL(params: ImageGenParams): Promise<GenerateResult> {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     }
   ));
 
@@ -147,6 +151,7 @@ export async function pollVEOOperation(
 
     const res = await fetch(`${VEO_POLL_BASE}/${operationName}?key=${apiKey}`, {
       headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
 
     if (!res.ok) {
@@ -204,6 +209,7 @@ async function generateVEO(params: VideoGenParams): Promise<GenerateResult> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     }));
 
     if (!res.ok) {
@@ -255,6 +261,7 @@ export async function pollRunwayJob(
         Authorization: `Bearer ${apiKey}`,
         'X-Runway-Version': '2024-11-06',
       },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
 
     if (!res.ok) {
@@ -297,6 +304,7 @@ async function generateRunway(params: VideoGenParams): Promise<GenerateResult> {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'X-Runway-Version': '2024-11-06' },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   }));
 
   if (!res.ok) {

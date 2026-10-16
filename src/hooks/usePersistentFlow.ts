@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { SceneConfig } from '../engine/vdlTimeline';  // Phase 9 P1
+import type { ExternalToolSlot } from '../types/vdl';
 
 const STORAGE_KEY = 'vdl-flow-state';
 
@@ -28,6 +29,7 @@ interface FlowState {
   shotHistory:  ShotRecord[];             // Phase 11 P3/P4
   savedPalettes: string[][];              // P2: 色票儲存組（最多 10）
   flowMode: 'basic' | 'advanced';         // Phase 13: 簡易/進階模式
+  externalTools: ExternalToolSlot[];      // Preflight: 外部工具連結（最多 3）
 }
 
 const DEFAULT_STATE: FlowState = {
@@ -40,6 +42,7 @@ const DEFAULT_STATE: FlowState = {
   shotHistory:  [],
   savedPalettes: [],
   flowMode: 'basic',
+  externalTools: [],
 };
 
 function loadState(): FlowState {
@@ -55,8 +58,8 @@ function loadState(): FlowState {
 function saveState(state: FlowState): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // localStorage quota exceeded — silent fail
+  } catch (e) {
+    console.warn('[VDL] localStorage quota exceeded:', e);
   }
 }
 
@@ -156,7 +159,8 @@ export function usePersistentFlow() {
   }, []);
 
   // Phase 10 P2: 下一鏡頭模式 — 保留 NODE 01/02/03 locks，清空 04-12
-  const SHOT_NODES = ['node_04','node_05','node_06','node_07','node_08','node_09','node_10','node_11','node_12'];
+  // H2: 包含 node_13, node_14 確保完整清除鏡頭狀態
+  const SHOT_NODES = ['node_04','node_05','node_06','node_07','node_08','node_09','node_10','node_11','node_12','node_13','node_14'];
   const resetShot = useCallback(() => {
     setState(prev => {
       const newNodeValues  = { ...prev.nodeValues };
@@ -187,9 +191,36 @@ export function usePersistentFlow() {
     setState(prev => ({ ...prev, flowMode: mode }));
   }, []);
 
+  // Preflight: 外部工具連結管理（最多 3 個）
+  const setExternalTools = useCallback((tools: ExternalToolSlot[]) => {
+    setState(prev => ({ ...prev, externalTools: tools.slice(0, 3) }));
+  }, []);
+
+  const addExternalTool = useCallback((tool: ExternalToolSlot) => {
+    setState(prev => {
+      if ((prev.externalTools ?? []).length >= 3) return prev;
+      return { ...prev, externalTools: [...(prev.externalTools ?? []), tool] };
+    });
+  }, []);
+
+  const removeExternalTool = useCallback((toolId: string) => {
+    setState(prev => ({
+      ...prev,
+      externalTools: (prev.externalTools ?? []).filter(t => t.id !== toolId),
+    }));
+  }, []);
+
+  // M3: resetFlow 連帶清除所有 template localStorage keys
   const resetFlow = useCallback(() => {
     setState(DEFAULT_STATE);
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem('vdl-flow-viewport');
+    const templateKeys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('vdl-templates-')) templateKeys.push(key);
+    }
+    templateKeys.forEach(k => localStorage.removeItem(k));
   }, []);
 
   return {
@@ -215,6 +246,10 @@ export function usePersistentFlow() {
     deletePalette,                              // P2: 刪除色票組
     flowMode: state.flowMode ?? 'basic',        // Phase 13: 簡易/進階
     setFlowMode,                                // Phase 13
+    externalTools: state.externalTools ?? [],   // Preflight: 外部工具
+    setExternalTools,                           // Preflight
+    addExternalTool,                            // Preflight
+    removeExternalTool,                         // Preflight
     resetFlow,
   };
 }

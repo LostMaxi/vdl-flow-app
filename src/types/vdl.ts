@@ -12,6 +12,9 @@ export interface Field {
   hudControl?: 'camera' | 'lighting' | 'orbit';  // 此欄位由 HUD 視覺化控制
   autoCompute?: boolean;  // 自動計算欄位（不可手動編輯）
   visibility?: 'basic' | 'advanced';  // 簡易/進階模式欄位分層（未標記 = basic）
+  helpText?: string;   // 欄位說明文字（Wave 2 H3: 技術欄位指引）
+  min?: number;        // number 類型最小值（Wave 3: 輸入驗證）
+  max?: number;        // number 類型最大值
 }
 
 export interface LockEntry {
@@ -36,6 +39,15 @@ export interface NodeDef {
   fields: Field[];
   locks: string[];
   promptTemplate: (v: Record<string, string | number>, locks?: Record<string, LockEntry>) => string;
+}
+
+// ─── External Tool Link Slots (Preflight 系統) ──────────────
+export interface ExternalToolSlot {
+  id: string;           // nanoid
+  label: string;        // 使用者自訂名稱
+  url: string;          // 完整 URL
+  favicon: string | null; // 自動解析或 null
+  locked: boolean;      // 鎖定後持久化
 }
 
 export interface NodeCardProps {

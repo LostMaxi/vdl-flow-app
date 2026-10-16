@@ -9,12 +9,14 @@ import { RadarChart } from './RadarChart';
 import { ColorPicker } from './ColorPicker';
 // TemplatePanel 已移至 EditorPanel 標題列
 import { paletteDeltaE, rgbToLab } from '../utils/colorScience';
+import { parseEyeEnvelope, paletteToFieldValue } from '../api/eyeBridge';
 import { runAutoQA } from '../utils/visionQA';
 import { getRandomWord, getRandomWordsForNode } from '../constants/randomWords';
 import { styles } from '../styles/theme';
 import { anime } from '../hooks/useAnime';
 import { useI18n } from '../i18n/context';
-import { quickTermTranslate, translateWithGemini } from '../utils/promptTranslator';
+import { translatePrompt } from '../utils/promptTranslator';
+import { LoadingSpinner } from './LoadingSpinner';
 import type { NodeCardProps } from '../types/vdl';
 
 // ─── 影像主色 → Kelvin 萃取（canvas 取樣，無需後端）────────
@@ -154,6 +156,11 @@ export function NodeCard({
   const [analysisStatus, setAnalysisStatus] = useState<'idle' | 'loading' | 'done'>('idle');
   const [refPreviewUrl, setRefPreviewUrl] = useState<string | null>(null);
 
+  // ─── Eye envelope 貼上面板狀態（per-field） ────────────────
+  const [eyePasteField, setEyePasteField] = useState<string | null>(null);
+  const [eyePasteRaw, setEyePasteRaw] = useState('');
+  const [eyePasteMsg, setEyePasteMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
   // ─── P1: 數值類欄位自動預填 placeholder 值 ────────────────
   useEffect(() => {
     if (!isActive || isCompleted) return;
@@ -250,6 +257,7 @@ export function NodeCard({
       setValues(v => ({ ...v, delta_kelvin: deltaK, ndf_delta: ndfDelta }));
       URL.revokeObjectURL(url);
     };
+    img.onerror = () => { URL.revokeObjectURL(url); };
     img.src = url;
   }, [nodeDef.id, locks]);
 
@@ -466,10 +474,10 @@ export function NodeCard({
     if (translating) return;
     setTranslating(true);
     try {
-      const result = await translateWithGemini(generatedPrompt);
+      const result = await translatePrompt(generatedPrompt);
       setTranslatedPrompt(result);
     } catch {
-      setTranslatedPrompt(quickTermTranslate(generatedPrompt));
+      setTranslatedPrompt(generatedPrompt);
     }
     setTranslating(false);
   }, [generatedPrompt, translating]);
@@ -551,14 +559,16 @@ export function NodeCard({
         <button
           onClick={() => setShowGuide(g => !g)}
           title="Guide"
+          className={showGuide ? undefined : 'vdl-breathe'}
           style={{
-            flexShrink: 0, width: 22, height: 22, borderRadius: '50%',
+            flexShrink: 0, width: 26, height: 26, minWidth: 26, minHeight: 26,
+            borderRadius: '50%', aspectRatio: '1',
             border: `1px solid ${showGuide ? '#A78BFA' : '#4C4E56'}`,
             background: showGuide ? '#2A1A4A' : 'transparent',
             color: showGuide ? '#DFCEEA' : '#818387',
-            fontSize: 11, fontWeight: 700, cursor: 'pointer',
+            fontSize: 12, fontWeight: 700, cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: 'inherit',
+            fontFamily: 'inherit', padding: 0, lineHeight: 1,
           }}
         >
           ?
@@ -611,7 +621,14 @@ export function NodeCard({
           return field.showWhen.values.includes(cur);
         }).map(field => (
           <div key={field.key} style={styles.fieldWrap}>
-            <label style={styles.fieldLabel}>{field.label}</label>
+            <label style={styles.fieldLabel}>
+              {field.label}
+              {field.helpText && (
+                <span style={{ fontSize: 9, color: '#63666A', fontWeight: 300, marginLeft: 6 }} title={field.helpText}>
+                  ({field.helpText})
+                </span>
+              )}
+            </label>
             <div style={{ display: 'flex', gap: 4, alignItems: 'flex-start' }}>
               {/* ─── 主輸入區 ─────────────────────────────── */}
               <div style={{ flex: 1 }}>
@@ -626,7 +643,7 @@ export function NodeCard({
                   />
                 ) : field.type === 'select' ? (
                   <select
-                    style={{ ...styles.input, cursor: 'pointer' }}
+                    style={{ ...styles.input, cursor: 'pointer', minHeight: 36 }}
                     value={String(mergedValues[field.key] ?? '')}
                     onChange={e => setValues(v => ({ ...v, [field.key]: e.target.value }))}
                     disabled={isCompleted}
@@ -645,6 +662,8 @@ export function NodeCard({
                     placeholder={field.placeholder}
                     disabled={isCompleted}
                     step={field.type === 'number' ? 'any' : undefined}
+                    min={field.type === 'number' && field.min !== undefined ? field.min : undefined}
+                    max={field.type === 'number' && field.max !== undefined ? field.max : undefined}
                   />
                 )}
               </div>
@@ -660,6 +679,33 @@ export function NodeCard({
                   onSavePalette={field.fieldVariant === 'palette' ? onSavePalette : undefined}
                   onDeletePalette={field.fieldVariant === 'palette' ? onDeletePalette : undefined}
                 />
+              )}
+
+              {/* ─── Eye envelope 匯入（palette 專用） ─────── */}
+              {field.fieldVariant === 'palette' && !isCompleted && (
+                <button
+                  onClick={() => {
+                    const nextOpen = eyePasteField === field.key ? null : field.key;
+                    setEyePasteField(nextOpen);
+                    setEyePasteMsg(null);
+                    if (nextOpen) setEyePasteRaw('');
+                  }}
+                  style={{
+                    minWidth: 28, height: 28, padding: '0 6px',
+                    background: eyePasteField === field.key ? '#2A1A4A' : 'transparent',
+                    border: '1px solid #A78BFA',
+                    borderRadius: 2,
+                    cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 10, color: '#DFCEEA',
+                    fontFamily: "'Inter', 'Noto Sans TC', sans-serif",
+                    letterSpacing: 0.5,
+                    flexShrink: 0,
+                  }}
+                  title="從 Eye envelope 匯入 palette（貼上 python -m eye palette <img> --envelope 的 JSON 輸出）"
+                >
+                  ◎ Eye
+                </button>
               )}
 
               {/* ─── P3: 單欄骰子按鈕 ───────────────────── */}
@@ -684,6 +730,103 @@ export function NodeCard({
                 </button>
               )}
             </div>
+
+            {/* ─── Eye envelope 貼上面板（展開於 field 下方） ─── */}
+            {eyePasteField === field.key && !isCompleted && (
+              <div
+                style={{
+                  marginTop: 8,
+                  padding: 10,
+                  border: '1px dashed #A78BFA',
+                  background: '#2A1A4A',
+                  borderRadius: 2,
+                }}
+              >
+                <div style={{ fontSize: 10, color: '#DFCEEA', marginBottom: 6, lineHeight: 1.6 }}>
+                  ◎ <strong>Eye envelope 匯入</strong> — 在終端機執行下列指令，複製整段 JSON 輸出貼到下方：
+                </div>
+                <pre
+                  style={{
+                    fontSize: 10, color: '#D9D9D6', background: '#1a1a2e',
+                    padding: '6px 8px', borderRadius: 2, margin: '0 0 8px 0',
+                    fontFamily: "'Inter', 'Noto Sans TC', monospace",
+                    whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+                  }}
+                >
+                  python -m eye palette &lt;image.jpg&gt; --n=5 --envelope
+                </pre>
+                <textarea
+                  value={eyePasteRaw}
+                  onChange={e => setEyePasteRaw(e.target.value)}
+                  placeholder='{ "task": "palette", "status": "ok", "data": { "colors": [...] } }'
+                  rows={5}
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    fontSize: 10, fontFamily: "'Inter', monospace",
+                    background: '#1a1a2e', color: '#D9D9D6',
+                    border: '1px solid #63666A', borderRadius: 2,
+                    padding: 6, resize: 'vertical',
+                  }}
+                />
+                <div style={{ display: 'flex', gap: 6, marginTop: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => {
+                      const result = parseEyeEnvelope(eyePasteRaw);
+                      if (!result.ok) {
+                        setEyePasteMsg({ ok: false, text: result.error });
+                        return;
+                      }
+                      setValues(v => ({ ...v, [field.key]: paletteToFieldValue(result.colors) }));
+                      const n = result.colors.length;
+                      const wmsg = result.warnings.length ? `（${result.warnings.length} 個警告）` : '';
+                      setEyePasteMsg({
+                        ok: true,
+                        text: `已匯入 ${n} 色 ${wmsg}  來源: ${result.source}`,
+                      });
+                      setEyePasteRaw('');
+                    }}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: 10, color: '#DFCEEA',
+                      background: 'transparent',
+                      border: '1px solid #A78BFA',
+                      borderRadius: 2, cursor: 'pointer',
+                      fontFamily: "'Inter', 'Noto Sans TC', sans-serif",
+                    }}
+                  >
+                    解析並填入
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEyePasteField(null);
+                      setEyePasteRaw('');
+                      setEyePasteMsg(null);
+                    }}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: 10, color: '#818387',
+                      background: 'transparent',
+                      border: '1px solid #63666A',
+                      borderRadius: 2, cursor: 'pointer',
+                      fontFamily: "'Inter', 'Noto Sans TC', sans-serif",
+                    }}
+                  >
+                    取消
+                  </button>
+                  {eyePasteMsg && (
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: eyePasteMsg.ok ? '#DFCEEA' : '#FDDA25',
+                        marginLeft: 4,
+                      }}
+                    >
+                      {eyePasteMsg.text}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -739,8 +882,10 @@ export function NodeCard({
                 fontSize: 9, padding: '4px 10px', background: 'transparent',
                 border: '1px solid #A78BFA', color: '#D9D9D6', cursor: analysisStatus === 'loading' ? 'wait' : 'pointer',
                 borderRadius: 2, letterSpacing: 0.5, opacity: analysisStatus === 'loading' ? 0.6 : 1,
+                minHeight: 28, display: 'inline-flex', alignItems: 'center', gap: 6,
               }}
             >
+              {analysisStatus === 'loading' && <LoadingSpinner size={10} color="#A78BFA" />}
               {analysisStatus === 'loading' ? t('node11.analyzing') : t('node11.importBtn')}
             </button>
             {analysisStatus === 'done' && (
@@ -823,8 +968,13 @@ export function NodeCard({
               {t('qa.aiScanBtn')}
             </button>
           </div>
-          {aiStatus !== 'idle' && (
-            <div style={{ fontSize: 8, color: aiStatus === 'error' ? '#707372' : aiStatus === 'done' ? '#D9D9D6' : '#818387', marginTop: 4 }}>
+          {aiStatus === 'loading' && (
+            <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <LoadingSpinner size={12} color="#818cf8" label={aiProgress} />
+            </div>
+          )}
+          {aiStatus !== 'idle' && aiStatus !== 'loading' && (
+            <div style={{ fontSize: 9, color: aiStatus === 'error' ? '#ef4444' : '#D9D9D6', marginTop: 4 }}>
               {aiProgress}
             </div>
           )}

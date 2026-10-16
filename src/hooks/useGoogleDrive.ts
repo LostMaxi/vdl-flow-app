@@ -67,6 +67,7 @@ async function driveRequest<T>(
   const res = await fetch(url, {
     ...init,
     headers: { Authorization: `Bearer ${token}`, ...(init?.headers ?? {}) },
+    signal: init?.signal ?? AbortSignal.timeout(15_000),
   });
   if (!res.ok) {
     const text = await res.text();
@@ -142,6 +143,7 @@ async function uploadFile(
       'Content-Type': `multipart/related; boundary=${boundary}`,
     },
     body,
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
@@ -152,7 +154,7 @@ async function uploadFile(
 async function downloadFile(token: string, fileId: string): Promise<string> {
   const res = await fetch(
     `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-    { headers: { Authorization: `Bearer ${token}` } },
+    { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15_000) },
   );
   if (!res.ok) throw new Error(`Download failed: ${res.status}`);
   return res.text();
@@ -161,6 +163,7 @@ async function downloadFile(token: string, fileId: string): Promise<string> {
 async function fetchUserInfo(token: string): Promise<GoogleUser> {
   const res = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
     headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(10_000),
   });
   if (!res.ok) throw new Error(`UserInfo failed: ${res.status}`);
   return res.json() as Promise<GoogleUser>;
@@ -232,7 +235,7 @@ export function useGoogleDrive() {
   const signOut = useCallback(() => {
     if (token) {
       // 撤銷 token
-      fetch(`https://oauth2.googleapis.com/revoke?token=${token}`, { method: 'POST' }).catch(() => {});
+      fetch(`https://oauth2.googleapis.com/revoke?token=${token}`, { method: 'POST', signal: AbortSignal.timeout(5000) }).catch(() => {});
     }
     setToken(null);
     setUser(null);

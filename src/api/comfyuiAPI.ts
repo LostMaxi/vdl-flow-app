@@ -65,7 +65,7 @@ async function pollComfyJob(promptId: string): Promise<string> {
   const maxAttempts = 60;
   for (let i = 0; i < maxAttempts; i++) {
     await new Promise(r => setTimeout(r, 1500));
-    const res  = await fetch(`${COMFY_BASE}/history/${promptId}`);
+    const res  = await fetch(`${COMFY_BASE}/history/${promptId}`, { signal: AbortSignal.timeout(5000) });
     if (!res.ok) continue;
     const hist = await res.json();
     const job  = hist[promptId];
@@ -120,6 +120,7 @@ export async function generateComfyUI(params: ComfyGenParams): Promise<ComfyGenR
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: workflow }),
+      signal: AbortSignal.timeout(10_000),
     });
 
     if (!queueRes.ok) {

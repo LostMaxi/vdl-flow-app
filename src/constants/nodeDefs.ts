@@ -147,14 +147,14 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
       description: t('node.05.desc'),
       layer: 'narrative',
       fields: [
-        { key: 'T_start',  label: t('field.T_start.label'),  type: 'number', placeholder: '0.30' },
-        { key: 'T_end',    label: t('field.T_end.label'),    type: 'number', placeholder: '0.65' },
+        { key: 'T_start',  label: t('field.T_start.label'),  type: 'number', placeholder: '0.30', min: 0, max: 1, helpText: '0=calm, 1=peak tension' },
+        { key: 'T_end',    label: t('field.T_end.label'),    type: 'number', placeholder: '0.65', min: 0, max: 1, helpText: '0=calm, 1=peak tension' },
         { key: 'T_easing', label: t('field.T_easing.label'), type: 'text',   placeholder: t('field.T_easing.placeholder'), visibility: 'advanced' },
-        { key: 'E_start',  label: t('field.E_start.label'),  type: 'number', placeholder: '0.25' },
-        { key: 'E_end',    label: t('field.E_end.label'),    type: 'number', placeholder: '0.60' },
-        { key: 'I_start',  label: t('field.I_start.label'),  type: 'number', placeholder: '0.10', visibility: 'advanced' },
-        { key: 'I_end',    label: t('field.I_end.label'),    type: 'number', placeholder: '0.30', visibility: 'advanced' },
-        { key: 'C_end',    label: t('field.C_end.label'),    type: 'number', placeholder: '0.70', visibility: 'advanced' }
+        { key: 'E_start',  label: t('field.E_start.label'),  type: 'number', placeholder: '0.25', min: 0, max: 1, helpText: '0=neutral, 1=peak emotion' },
+        { key: 'E_end',    label: t('field.E_end.label'),    type: 'number', placeholder: '0.60', min: 0, max: 1, helpText: '0=neutral, 1=peak emotion' },
+        { key: 'I_start',  label: t('field.I_start.label'),  type: 'number', placeholder: '0.10', min: 0, max: 1, helpText: '0=low info, 1=high info', visibility: 'advanced' },
+        { key: 'I_end',    label: t('field.I_end.label'),    type: 'number', placeholder: '0.30', min: 0, max: 1, helpText: '0=low info, 1=high info', visibility: 'advanced' },
+        { key: 'C_end',    label: t('field.C_end.label'),    type: 'number', placeholder: '0.70', min: 0, max: 1, helpText: '0=no focus, 1=full focus', visibility: 'advanced' }
       ],
       locks: ['T_end', 'E_end', 'I_end', 'C_end'],
       promptTemplate: (v) => {
@@ -176,11 +176,11 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
       layer: 'flow',
       fields: [
         { key: 'env_prompt',  label: t('field.env_prompt.label'),  type: 'textarea', placeholder: t('field.env_prompt.placeholder') },
-        { key: 'kelvin',      label: t('field.kelvin.label'),      type: 'number',   placeholder: '3800' },
-        { key: 'ev',          label: t('field.ev.label'),          type: 'number',   placeholder: '-0.5' },
-        { key: 'contrast',    label: t('field.contrast.label'),    type: 'number',   placeholder: '0.72' },
-        { key: 'saturation',  label: t('field.saturation.label'),  type: 'number',   placeholder: '0.55' },
-        { key: 'shadowLift',  label: t('field.shadowLift.label'),  type: 'number',   placeholder: '0.03', noDice: true, visibility: 'advanced' },
+        { key: 'kelvin',      label: t('field.kelvin.label'),      type: 'number',   placeholder: '3800', min: 2800, max: 7500, helpText: '2800K=warm amber, 5500K=neutral, 7500K=cool blue' },
+        { key: 'ev',          label: t('field.ev.label'),          type: 'number',   placeholder: '-0.5', min: -3, max: 3, helpText: '-3=very dark, 0=neutral, +3=very bright' },
+        { key: 'contrast',    label: t('field.contrast.label'),    type: 'number',   placeholder: '0.72', min: 0, max: 1, helpText: '0=flat, 1=maximum contrast' },
+        { key: 'saturation',  label: t('field.saturation.label'),  type: 'number',   placeholder: '0.55', min: 0, max: 1, helpText: '0=grayscale, 1=vivid colors' },
+        { key: 'shadowLift',  label: t('field.shadowLift.label'),  type: 'number',   placeholder: '0.03', min: 0, max: 0.2, helpText: '0=crushed blacks, 0.2=lifted shadows', noDice: true, visibility: 'advanced' },
         { key: 'foreground',  label: t('field.foreground.label'),  type: 'text',     placeholder: t('field.foreground.placeholder'), visibility: 'advanced' },
         { key: 'midground',   label: t('field.midground.label'),   type: 'text',     placeholder: t('field.midground.placeholder'), visibility: 'advanced' },
         { key: 'background',  label: t('field.background.label'),  type: 'text',     placeholder: t('field.background.placeholder'), visibility: 'advanced' },
@@ -355,7 +355,7 @@ export function getNodeDefs(t: TFunction): NodeDef[] {
         { key: 'delta_palette_ref',   label: t('field.delta_palette_ref.label'),   type: 'number',   placeholder: '0', visibility: 'advanced' },
         { key: 'prompt_correction',   label: t('field.prompt_correction.label'),   type: 'textarea', placeholder: t('field.prompt_correction.placeholder') },
         { key: 'generator',           label: t('field.generator.label'),           type: 'select',   placeholder: t('field.generator.placeholder'),
-          options: [t('field.generator.sdxl'), t('field.generator.dalle3'), t('field.generator.midjourney'), t('field.generator.stability')] },
+          options: [t('field.generator.sdxl'), t('field.generator.dalle3'), t('field.generator.midjourney'), t('field.generator.stability'), t('field.generator.imagefx')] },
         { key: 'seed',                label: t('field.seed.label'),                type: 'number',   placeholder: '42' }
       ],
       locks: ['detected_kelvin', 'detected_palette', 'seed'],

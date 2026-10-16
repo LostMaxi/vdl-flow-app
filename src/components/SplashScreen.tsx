@@ -17,6 +17,7 @@ interface SplashScreenProps {
   onDeleteProjects: (id: string) => void;
   onDriveOpen: (fileId: string, fileName: string) => void;
   onDriveListRequest: () => Promise<void>;
+  onOpenTemplateGallery: () => void;
 }
 
 export function SplashScreen({
@@ -28,6 +29,7 @@ export function SplashScreen({
   onDeleteProjects,
   onDriveOpen,
   onDriveListRequest,
+  onOpenTemplateGallery,
 }: SplashScreenProps) {
   const { t, lang, setLang } = useI18n();
   const [selectMode, setSelectMode] = useState(false);
@@ -52,6 +54,7 @@ export function SplashScreen({
     setSelectMode(false);
   }, [selected, onDeleteProjects]);
   const [dragOver, setDragOver] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [showDriveFiles, setShowDriveFiles] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<HTMLDivElement>(null);
@@ -113,7 +116,7 @@ export function SplashScreen({
 
     const file = e.dataTransfer.files[0];
     if (!file || !file.name.endsWith('.json')) {
-      alert(t('splash.invalidFile'));
+      setFileError(t('splash.invalidFile'));
       return;
     }
     const reader = new FileReader();
@@ -123,7 +126,7 @@ export function SplashScreen({
         JSON.parse(text); // 驗證 JSON 格式
         onOpenFile(text, file.name.replace(/\.json$/, ''));
       } catch {
-        alert(t('splash.invalidFile'));
+        setFileError(t('splash.invalidFile'));
       }
     };
     reader.readAsText(file);
@@ -140,7 +143,7 @@ export function SplashScreen({
         JSON.parse(text);
         onOpenFile(text, file.name.replace(/\.json$/, ''));
       } catch {
-        alert(t('splash.invalidFile'));
+        setFileError(t('splash.invalidFile'));
       }
     };
     reader.readAsText(file);
@@ -187,6 +190,23 @@ export function SplashScreen({
           <div style={{ fontSize: 18, color: '#A78BFA', letterSpacing: 4 }}>
             {t('splash.dropzoneActive')}
           </div>
+        </div>
+      )}
+
+      {/* 檔案錯誤提示 */}
+      {fileError && (
+        <div style={{
+          position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', zIndex: 200,
+          background: '#1a0808', border: '1px solid #ef4444', borderRadius: 6,
+          padding: '10px 20px', color: '#ef4444', fontSize: 12,
+          fontFamily: "'Inter', 'Noto Sans TC', sans-serif",
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          <span>{fileError}</span>
+          <button onClick={() => setFileError(null)} style={{
+            background: 'transparent', border: '1px solid #333', color: '#818387',
+            padding: '2px 8px', borderRadius: 2, cursor: 'pointer', fontSize: 10, fontFamily: 'inherit',
+          }}>OK</button>
         </div>
       )}
 
@@ -254,6 +274,35 @@ export function SplashScreen({
           </div>
           <div style={{ fontSize: 9, color: '#63666A', lineHeight: 1.5 }}>
             {t('splash.newProjectDesc')}
+          </div>
+        </div>
+
+        {/* 模板啟動 */}
+        <div
+          data-splash-card
+          onClick={onOpenTemplateGallery}
+          style={{
+            width: 200, padding: '28px 20px', cursor: 'pointer',
+            background: '#111', border: '1px solid #2A1A4A', borderRadius: 3,
+            textAlign: 'center', opacity: 0,
+            transition: 'border-color 0.2s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.borderColor = '#DFCEEA')}
+          onMouseLeave={e => (e.currentTarget.style.borderColor = '#2A1A4A')}
+        >
+          <div style={{ fontSize: 28, color: '#DFCEEA', marginBottom: 12 }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#DFCEEA" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+            </svg>
+          </div>
+          <div style={{ fontSize: 13, color: '#D9D9D6', letterSpacing: 1, marginBottom: 6 }}>
+            {t('splash.fromTemplate')}
+          </div>
+          <div style={{ fontSize: 9, color: '#63666A', lineHeight: 1.5 }}>
+            {t('splash.fromTemplateDesc')}
           </div>
         </div>
 

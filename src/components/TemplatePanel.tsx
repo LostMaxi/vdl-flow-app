@@ -138,6 +138,8 @@ const TemplatePanel: React.FC<TemplatePanelProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [appliedId, setAppliedId] = useState<string | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
 
   // 過濾出屬於此節點的模板
   const nodeTemplates = templates.filter(t => t.nodeId === nodeId);
@@ -173,8 +175,14 @@ const TemplatePanel: React.FC<TemplatePanelProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    setExtracting(true);
+    setPreviewSrc(null);
+
     const reader = new FileReader();
     reader.onload = () => {
+      // 立即顯示圖片預覽
+      setPreviewSrc(reader.result as string);
+
       const img = new Image();
       img.onload = () => {
         // 提取主色調
@@ -182,9 +190,10 @@ const TemplatePanel: React.FC<TemplatePanelProps> = ({
         // 生成縮圖
         const thumbnail = generateThumbnail(canvas, ctx, img);
 
-        // 組裝提取值：以 palette 格式存入
+        // 組裝提取值：dominant_palette 為主欄位（BASIC 可見）
         const values: Record<string, string> = {
           palette: colors.join(', '),
+          dominant_palette: colors.join(', '),
         };
         // 個別色彩欄位供節點使用
         colors.forEach((hex, i) => {
@@ -199,9 +208,13 @@ const TemplatePanel: React.FC<TemplatePanelProps> = ({
           thumbnail,
           source: 'image',
         });
+        setExtracting(false);
+        setPreviewSrc(null);
       };
+      img.onerror = () => { setExtracting(false); setPreviewSrc(null); };
       img.src = reader.result as string;
     };
+    reader.onerror = () => setExtracting(false);
     reader.readAsDataURL(file);
 
     // 重置 input 以允許重複上傳同一檔案
@@ -365,24 +378,37 @@ const TemplatePanel: React.FC<TemplatePanelProps> = ({
         <button style={styles.btnSave} onClick={handleSave}>
           儲存當前
         </button>
-        <button
-          style={styles.btnUpload}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          圖片提取
-        </button>
+        <label style={{
+          ...styles.btnUpload,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          opacity: extracting ? 0.5 : 1,
+          pointerEvents: extracting ? 'none' : 'auto',
+        }}>
+          {extracting ? '提取中...' : '圖片提取'}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            style={{ position: 'absolute', width: 0, height: 0, opacity: 0, overflow: 'hidden' }}
+            onChange={handleImageUpload}
+            disabled={extracting}
+          />
+        </label>
       </div>
 
-      {/* 隱藏的檔案輸入 */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: 'none' }}
-        onChange={handleImageUpload}
-      />
+      {/* 圖片預覽（提取中） */}
+      {previewSrc && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+          <img
+            src={previewSrc}
+            alt="preview"
+            style={{ width: 48, height: 48, borderRadius: 3, objectFit: 'cover', border: `1px solid ${C.border}` }}
+          />
+          <span style={{ fontSize: 10, color: C.label, fontStyle: 'italic' }}>色彩提取中...</span>
+        </div>
+      )}
 
-      {/* 隱藏的 canvas，用於色彩分析與縮圖生成 */}
+      {/* canvas 用於色彩分析與縮圖生成 */}
       <canvas ref={canvasRef} style={{ display: 'none' }} />
 
       {/* 分隔線 */}

@@ -104,7 +104,10 @@ export function useProjectManager() {
       saveIndex(next);
       return next;
     });
-    if (id === activeId) switchProject(projects.find(p => p.id !== id)!.id);
+    if (id === activeId) {
+      const next = projects.find(p => p.id !== id);
+      if (next) switchProject(next.id);
+    }
   }, [projects, activeId, switchProject]);
 
   // 重命名

@@ -53,5 +53,9 @@ export function getInitialNodes(): Node[] {
     // ── Layer: validation (y=4) ──────────────────────────────
     { id: 'node_13', position: { x: X_GAP * 1,   y: Y_GAP * 4 }, type: 'vdlNode', data: { nodeId: 'node_13' } },
     { id: 'node_14', position: { x: X_GAP * 2,   y: Y_GAP * 4 }, type: 'vdlNode', data: { nodeId: 'node_14' } },
+
+    // ── Preflight 分支節點 (圓形, 不阻斷主管線) ─────────────
+    { id: 'preflight_img', position: { x: X_GAP * 2 + 120, y: Y_GAP * 3 + 100 }, type: 'preflightNode', data: { preflightType: 'image' } },
+    { id: 'preflight_vid', position: { x: X_GAP * 3 + 120, y: Y_GAP * 3 + 100 }, type: 'preflightNode', data: { preflightType: 'video' } },
   ];
 }

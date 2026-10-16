@@ -53,6 +53,32 @@ export const en: Record<string, string> = {
   'splash.cancelSelect': 'Cancel',
   'splash.selectAll': 'Select All',
   'splash.deleteSelected': 'Delete ({count})',
+  'splash.fromTemplate': 'Start from Template',
+  'splash.fromTemplateDesc': 'Choose a cinematic style, one-click fill NODE 01-09',
+
+  // ─── Film Templates ───────────────────────────────────────
+  'template.gallery.title': 'CINEMATIC TEMPLATES',
+  'template.gallery.subtitle': 'Choose a visual style — instantly fills NODE 01-09',
+  'template.gallery.back': '← Back',
+  'template.gallery.applied': 'Template applied — NODE 01-09 filled',
+  'template.noir.name': 'Noir Shadows',
+  'template.noir.desc': 'Hard-boiled detective story, chiaroscuro lighting, expressionist shadows',
+  'template.noir.tagline': 'Where shadows tell the truth',
+  'template.golden.name': 'Golden Hour',
+  'template.golden.desc': 'Warm sunset romance, Malick-esque natural light, tender emotion',
+  'template.golden.tagline': 'Light that forgives everything',
+  'template.cyber.name': 'Cyberpunk Neon',
+  'template.cyber.desc': 'Neon-drenched megacity, Blade Runner aesthetics, synthetic rain',
+  'template.cyber.tagline': 'Electric dreams in a digital rain',
+  'template.nordic.name': 'Nordic Silence',
+  'template.nordic.desc': 'Scandinavian minimalism, vast frozen landscapes, contemplative stillness',
+  'template.nordic.tagline': 'Where silence speaks volumes',
+  'template.wes.name': 'Wes Anderson',
+  'template.wes.desc': 'Symmetrical compositions, pastel palette, storybook precision',
+  'template.wes.tagline': 'Perfectly composed melancholy',
+  'template.wkw.name': 'Wong Kar-wai',
+  'template.wkw.desc': 'Saturated neon, step-printed motion, romantic melancholy in Hong Kong',
+  'template.wkw.tagline': 'Love in every missed connection',
 
   // ─── Scene History ─────────────────────────────────────────
   'scene.history': '◎ SCENE HISTORY: {count} shot(s)',
@@ -197,7 +223,7 @@ export const en: Record<string, string> = {
 
   // ─── Language Toggle ──────────────────────────────────────
   'lang.label': 'Lang',
-  'lang.zhTW': '中文',
+  'lang.zhTW': '繁中',
   'lang.en': 'EN',
 
   // ─── NODE Definitions — Titles & Descriptions (V2: 14 nodes) ──
@@ -462,6 +488,7 @@ export const en: Record<string, string> = {
   'field.generator.dalle3': 'DALL-E 3',
   'field.generator.midjourney': 'Midjourney',
   'field.generator.stability': 'Stability AI',
+  'field.generator.imagefx': 'Nana Banana 2 (ImageFx)',
   'field.seed.label': 'Seed',
   'node11.importTitle': '◎ Import Reference Image — VDL Reverse Analysis',
   'node11.importBtn': '▲ Select Reference Image',
@@ -545,4 +572,18 @@ export const en: Record<string, string> = {
   'node.12.guide': '[Purpose] Import reference video → per-frame sampling → kelvin drift / palette consistency / motion detection → prompt correction.\n[Basic] Segment ID, duration, select video generator.\n[Advanced] Review frames sampled, kelvin drift ±K, palette consistency, motion pattern match, transition type, write video prompt corrections.',
   'node.13.guide': '[Purpose] 6-axis metric scan → deviation measurement → feedback correction nodes.\n[Basic] Enter ΔKelvin, ΔE color, CLIP similarity.\n[Advanced] Enter YOLO object recall, depth correlation, NDF T delta, specify feedback nodes.',
   'node.14.guide': '[Purpose] Film DNA drift detection → correction vectors → cross-scene continuity validation.\n[Basic] Review cumulative drift % and film continuity status.\n[Advanced] Review per-axis drift (ΔKelvin/ΔEV/ΔContrast/ΔSaturation), correction rate, stitch gaps, write stitch notes.',
+
+  // ─── Preflight & External Tools ───────────────────────────
+  'preflight.img.title': 'Preflight: Image',
+  'preflight.vid.title': 'Preflight: Video',
+  'preflight.copy': 'Copy Prompt',
+  'preflight.copied': 'Copied',
+  'preflight.empty': 'No upstream data yet — complete nodes to see aggregated settings.',
+  'tools.manage': 'Manage Tools',
+  'tools.open': 'Open',
+  'tools.copyAndOpen': 'Copy & Open',
+  'tools.addSlot': '+ Add Tool',
+  'tools.label': 'Label',
+  'tools.url': 'URL',
+  'tools.save': 'Save',
 };

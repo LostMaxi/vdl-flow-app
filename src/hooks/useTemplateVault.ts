@@ -18,7 +18,7 @@ function loadTemplates(nodeId: string): NodeTemplate[] {
 function saveTemplates(nodeId: string, templates: NodeTemplate[]): void {
   try {
     localStorage.setItem(STORAGE_PREFIX + nodeId, JSON.stringify(templates));
-  } catch { /* quota exceeded */ }
+  } catch (e) { console.warn('[VDL] saveTemplates quota exceeded:', e); }
 }
 
 // ─── 縮圖壓縮 ───────────────────────────────────────────────
@@ -114,7 +114,13 @@ export function exportAllTemplates(): string {
 }
 
 export function importAllTemplates(json: string): number {
-  const data = JSON.parse(json) as Record<string, NodeTemplate[]>;
+  let data: Record<string, NodeTemplate[]>;
+  try {
+    data = JSON.parse(json) as Record<string, NodeTemplate[]>;
+  } catch (e) {
+    console.warn('[VDL] importAllTemplates: invalid JSON', e);
+    return 0;
+  }
   let count = 0;
   for (const [nodeId, templates] of Object.entries(data)) {
     if (Array.isArray(templates)) {

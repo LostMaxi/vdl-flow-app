@@ -4,6 +4,7 @@
 
 import { lazy, Suspense, useMemo, useState, useCallback } from 'react';
 import { NodeCard } from '../NodeCard';
+import { LoadingSpinner } from '../LoadingSpinner';
 import TemplatePanel from '../TemplatePanel';
 import type { NodeDef, LockEntry } from '../../types/vdl';
 import type { NodeTemplate } from '../../types/filmDNA';
@@ -29,6 +30,50 @@ const C = {
 } as const;
 
 const FONT = "'Inter', 'Noto Sans TC', sans-serif";
+
+// ─── GAS 圖片→情緒/風格推斷（NODE 01 專用）─────────────────
+
+async function enrichNode01FromPalette(
+  palette: string,
+): Promise<Record<string, string> | null> {
+  const gasUrl = import.meta.env.VITE_GAS_URL;
+  if (!gasUrl) return null;
+
+  try {
+    const res = await fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      signal: AbortSignal.timeout(15_000),
+      body: JSON.stringify({
+        mode: 'translate',
+        message:
+          `以下是一組從參考圖片提取的色票：[${palette}]\n\n` +
+          '請根據這組色彩推斷以下四項，直接輸出 JSON，不加其他文字：\n' +
+          '{\n' +
+          '  "emotion_start": "起始情緒（如：孤寂、溫暖、迷茫、躁動）",\n' +
+          '  "emotion_end": "終點情緒（如：希望、平靜、釋懷、激昂）",\n' +
+          '  "style_keywords": "3-5個風格關鍵字，逗號分隔（如：warm vintage, golden hour, soft glow）",\n' +
+          '  "theme_hint": "一句話主題暗示（如：失去與重逢的記憶旅程）"\n' +
+          '}',
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.error) return null;
+
+    const text = data.translated?.trim() || '';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    const parsed = JSON.parse(jsonMatch[0]);
+    return {
+      emotion_start: parsed.emotion_start || '',
+      emotion_end: parsed.emotion_end || '',
+      style_keywords: parsed.style_keywords || '',
+    };
+  } catch {
+    return null;
+  }
+}
 
 // ─── Props ───────────────────────────────────────────────────
 
@@ -116,14 +161,33 @@ export function EditorPanel({
 
   // 模板套用：寫入 nodeValues → 透過 key 強制 NodeCard 重新掛載
   // ⚠ 必須在 early return 之前，遵守 Rules of Hooks
+  const [enriching, setEnriching] = useState(false);
+
   const handleApplyTemplate = useCallback((templateValues: Record<string, string>) => {
     if (!selectedNodeId) return;
     const merged: Record<string, string | number> = {
       ...(nodeValues[selectedNodeId] ?? {}),
     };
     Object.entries(templateValues).forEach(([k, v]) => { merged[k] = v; });
-    onApplyTemplateValues(selectedNodeId, merged);
-    setTemplateVersion(v => v + 1);
+
+    // NODE 01 + 圖片模板：呼叫 GAS 推斷情緒/風格
+    const palette = templateValues.palette || templateValues.dominant_palette;
+    if (selectedNodeId === 'node_01' && palette) {
+      setEnriching(true);
+      enrichNode01FromPalette(palette).then(enriched => {
+        if (enriched) {
+          Object.entries(enriched).forEach(([k, v]) => {
+            if (v && !merged[k]) merged[k] = v;   // 不覆蓋已填欄位
+          });
+        }
+        onApplyTemplateValues(selectedNodeId, merged);
+        setTemplateVersion(v => v + 1);
+        setEnriching(false);
+      });
+    } else {
+      onApplyTemplateValues(selectedNodeId, merged);
+      setTemplateVersion(v => v + 1);
+    }
     setShowTemplates(false);
   }, [selectedNodeId, nodeValues, onApplyTemplateValues]);
 
@@ -201,7 +265,8 @@ export function EditorPanel({
 
   const hasCameraHUD    = selectedDef.fields.some(f => f.hudControl === 'camera');
   const hasLightingHUD  = selectedDef.fields.some(f => f.hudControl === 'lighting');
-  const nodeTemplates   = getTemplatesForNode(selectedNodeId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const nodeTemplates   = useMemo(() => getTemplatesForNode(selectedNodeId), [selectedNodeId, templateVersion, getTemplatesForNode]);
   const isNodeActive    = selectedIndex === activeIndex;
   const isNodeCompleted = completedNodes.has(selectedNodeId);
   const showTemplateTrigger = !!onSaveTemplate;
@@ -224,13 +289,13 @@ export function EditorPanel({
           <button
             onClick={onClose}
             style={{
-              width: 22, height: 22, borderRadius: 3,
+              width: 28, height: 28, borderRadius: 3,
               border: `1px solid ${C.border}`, background: 'transparent',
-              color: C.label, fontSize: 13, cursor: 'pointer',
+              color: C.label, fontSize: 15, cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontFamily: FONT, flexShrink: 0,
             }}
-            title="Close"
+            title="Close (ESC)"
           >
             ×
           </button>
@@ -258,14 +323,14 @@ export function EditorPanel({
             <button
               onClick={() => setShowTemplates(s => !s)}
               style={{
-                fontSize: 9, padding: '2px 8px', borderRadius: 3, cursor: 'pointer',
-                fontFamily: FONT, fontWeight: 600, letterSpacing: 0.3,
+                fontSize: 9, padding: '3px 10px', borderRadius: 3, cursor: 'pointer',
+                fontFamily: FONT, fontWeight: 600, letterSpacing: 0.3, minHeight: 26,
                 border: `1px solid ${showTemplates ? C.purple : C.border}`,
                 background: showTemplates ? C.darkPurple : 'transparent',
                 color: showTemplates ? C.lavender : C.label,
               }}
             >
-              TPL
+              Templates{nodeTemplates.length > 0 ? ` (${nodeTemplates.length})` : ''}
             </button>
           )}
           {/* BASIC / ADVANCED 切換 */}
@@ -296,6 +361,13 @@ export function EditorPanel({
             </button>
           </div>
         </div>
+
+        {/* GAS 推斷中提示 */}
+        {enriching && (
+          <div style={{ padding: '6px 16px 8px', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <LoadingSpinner size={14} color={C.purple} label="色彩情緒推斷中..." />
+          </div>
+        )}
 
         {/* 動作列：CONFIRM 或 撤回 */}
         {isNodeActive && !isNodeCompleted && (
@@ -342,8 +414,8 @@ export function EditorPanel({
               currentValues={currentValuesForTemplate}
               onApplyTemplate={handleApplyTemplate}
               templates={nodeTemplates}
-              onSaveTemplate={onSaveTemplate!}
-              onRemoveTemplate={onRemoveTemplate!}
+              onSaveTemplate={(tpl) => { const r = onSaveTemplate!(tpl); setTemplateVersion(v => v + 1); return r; }}
+              onRemoveTemplate={(id) => { onRemoveTemplate!(id); setTemplateVersion(v => v + 1); }}
             />
           </div>
         )}

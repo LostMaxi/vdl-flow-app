@@ -1,12 +1,11 @@
 // ◎ VDL-FLOW React 主編排元件
 // 拆分自原始 1238 行單體元件，保留核心流程邏輯
 
-import { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
 import { usePersistentFlow } from './hooks/usePersistentFlow';
 import { useProjectManager } from './hooks/useProjectManager';
 import { useGenHistory } from './hooks/useGenHistory';
 import { node05ToNode06Prefill, palette02ToPhotometric } from './bridge/ndfToVdl';
-import { buildVDLFile, downloadVDL } from './utils/vdlExport';
 import { createSceneTimeline, stitchScenes, type SceneConfig, type StitchResult } from './engine/vdlTimeline';
 const StoryboardWall = lazy(() => import('./components/StoryboardWall').then(m => ({ default: m.StoryboardWall })));
 const ScriptPanel    = lazy(() => import('./components/ScriptPanel').then(m => ({ default: m.ScriptPanel })));
@@ -19,9 +18,16 @@ import { useGoogleDrive } from './hooks/useGoogleDrive';
 import { SplashScreen } from './components/SplashScreen';
 import { FlowCanvas } from './components/flow/FlowCanvas';
 import { EditorPanel } from './components/flow/EditorPanel';
+import { PreflightCard } from './components/flow/PreflightCard';
+import { ConfirmModal, useConfirmModal } from './components/ConfirmModal';
+import { OnboardingOverlay } from './components/OnboardingOverlay';
+import { LoadingSpinner } from './components/LoadingSpinner';
 import type { NodeDef } from './types/vdl';
 import type { NodeTemplate } from './types/filmDNA';
 import { assembleExportPayload } from './types/exportPayload';
+import { assemblePreflightPrompt } from './utils/assemblePreflightPrompt';
+import { FilmTemplateGallery } from './components/FilmTemplateGallery';
+import type { FilmTemplate } from './constants/filmTemplates';
 
 const SPLASH_SESSION_KEY = 'vdl-flow-splash-dismissed';
 
@@ -34,6 +40,7 @@ export default function VDLFlowApp() {
     addSceneToHistory, addQARecord, resetShot, resetFlow,
     removeLock, undoComplete, savedPalettes, savePalette, deletePalette,
     flowMode, setFlowMode,
+    externalTools, setExternalTools,
   } = usePersistentFlow();
 
   const [copiedAll, setCopiedAll] = useState(false);
@@ -49,39 +56,82 @@ export default function VDLFlowApp() {
   const [qaRetryCount, setQaRetryCount] = useState(0);
   const [qaHumanReview, setQaHumanReview] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [preflightCardId, setPreflightCardId] = useState<'preflight_img' | 'preflight_vid' | null>(null);
+  const panToNodeRef = useRef<((nodeId: string) => void) | null>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const footerRef = useRef<HTMLElement>(null);
   const copiedAllRef = useRef<HTMLButtonElement>(null);
   const headerRef = useRef<HTMLElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [activeSection, setActiveSection] = useState(0);
-
-  const SECTION_LABELS = ['Canvas', 'Tools'];
-
-  const handleScrollSnap = useCallback(() => {
-    const el = scrollContainerRef.current;
-    if (!el) return;
-    const sections = el.querySelectorAll<HTMLElement>('[data-section]');
-    let closest = 0;
-    let minDist = Infinity;
-    sections.forEach((sec, i) => {
-      const dist = Math.abs(sec.offsetTop - el.scrollTop);
-      if (dist < minDist) { minDist = dist; closest = i; }
-    });
-    setActiveSection(closest);
-  }, []);
-
-  const scrollToSection = useCallback((index: number) => {
-    const el = scrollContainerRef.current;
-    if (!el) return;
-    const sections = el.querySelectorAll<HTMLElement>('[data-section]');
-    sections[index]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, []);
+  const modal = useConfirmModal();
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const [showTemplateGallery, setShowTemplateGallery] = useState(false);
+  const [templateAppliedMsg, setTemplateAppliedMsg] = useState<string | null>(null);
 
   const allDone = completedNodes.size === NODE_DEFS.length;
 
+  // ─── P0 模板：reload 後接手套用 ─────────────────────────────────
+  useEffect(() => {
+    const pending = sessionStorage.getItem('vdl-pending-template');
+    if (!pending) return;
+    sessionStorage.removeItem('vdl-pending-template');
+    try {
+      const nodes = JSON.parse(pending) as Record<string, Record<string, string>>;
+      Object.entries(nodes).forEach(([nodeId, values]) => {
+        setNodeValues(nodeId, values);
+      });
+      setTemplateAppliedMsg(t('template.gallery.applied'));
+      setTimeout(() => setTemplateAppliedMsg(null), 3000);
+    } catch { /* silent */ }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── 鍵盤快捷鍵 ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (showSplash) return;
+    const handler = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + S → 儲存專案
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveCurrentProject();
+        setLastSavedAt(Date.now());
+      }
+      // ESC → 關閉 Gallery / preflight / 編輯面板
+      if (e.key === 'Escape') {
+        if (showTemplateGallery) setShowTemplateGallery(false);
+        else if (preflightCardId) setPreflightCardId(null);
+        else if (selectedNodeId) setSelectedNodeId(null);
+      }
+      // 方向鍵 → 導航節點（僅在無 input focus 時）
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        const next = Math.min(activeIndex + 1, NODE_DEFS.length - 1);
+        setSelectedNodeId(NODE_DEFS[next]?.id ?? null);
+      }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const prev = Math.max(activeIndex - 1, 0);
+        setSelectedNodeId(NODE_DEFS[prev]?.id ?? null);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [showSplash, selectedNodeId, activeIndex, saveCurrentProject, NODE_DEFS, showTemplateGallery]);
+
+  // ─── 自動儲存提示（每 60 秒） ─────────────────────────────────
+  useEffect(() => {
+    if (showSplash) return;
+    const timer = setInterval(() => {
+      saveCurrentProject();
+      setLastSavedAt(Date.now());
+    }, 60_000);
+    return () => clearInterval(timer);
+  }, [showSplash, saveCurrentProject]);
+
   // ─── Anime.js: Header 進場動畫 ─────────────────────────────────
   useEffect(() => {
+    if (showSplash) return;          // Splash 階段 header 不存在，跳過
     if (!headerRef.current) return;
     anime({
       targets: headerRef.current,
@@ -90,10 +140,11 @@ export default function VDLFlowApp() {
       duration: 700,
       easing: 'easeOutCubic',
     });
-  }, []);
+  }, [showSplash]);
 
   // ─── Anime.js: 進度條 dot stagger 動畫 ────────────────────────
   useEffect(() => {
+    if (showSplash) return;
     if (!progressBarRef.current) return;
     const dots = progressBarRef.current.querySelectorAll('[data-dot]');
     if (dots.length === 0) return;
@@ -105,7 +156,7 @@ export default function VDLFlowApp() {
       duration: 400,
       easing: 'easeOutBack',
     });
-  }, []);
+  }, [showSplash]);
 
   // ─── Anime.js: 節點完成時脈衝進度 dot ────────────────────────
   useEffect(() => {
@@ -136,36 +187,32 @@ export default function VDLFlowApp() {
     });
   }, [allDone]);
 
-  // NODE 12 QA PASS → 自動封存進度 JSON
-  useEffect(() => {
-    if (!filmReport?.valid) return;
-    const raw = localStorage.getItem('vdl-flow-state') ?? '{}';
-    const blob = new Blob([raw], { type: 'application/json' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = `vdl-flow-qa-pass-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [filmReport]);
+  // C2: filmReport auto-export 已移除 — NODE 14 auto-export 為唯一出口
 
   // ─── 匯出 / 匯入 ─────────────────────────────────────────────
 
-  const handleExport = () => {
-    const raw = localStorage.getItem('vdl-flow-state') ?? '{}';
-    const blob = new Blob([raw], { type: 'application/json' });
+  const handleExport = async () => {
+    const summary = `${completedNodes.size}/${NODE_DEFS.length} nodes, ${sceneHistory.length} scenes, ${shotHistory.length} shots`;
+    const ok = await modal.confirm({
+      title: t('toolbar.exportTitle') ?? 'Export Project',
+      message: (t('toolbar.exportDesc') ?? 'Export includes:') + '\n' + summary,
+      confirmLabel: t('toolbar.exportJSON'),
+    });
+    if (!ok) return;
+    const imgPf = assemblePreflightPrompt('image', nodeValues, locks, allPrompts);
+    const vidPf = assemblePreflightPrompt('video', nodeValues, locks, allPrompts);
+    const payload = assembleExportPayload(
+      nodeValues, locks, allPrompts, sceneHistory, shotHistory,
+      externalTools, { image: imgPf.assembled, video: vidPf.assembled },
+    );
+    const projName = projects.find(p => p.id === activeId)?.name ?? 'vdl';
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href     = url;
-    a.download = `vdl-flow-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `VDL_${projName}_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  };
-
-  const handleExportVDL = () => {
-    const projName = projects.find(p => p.id === activeId)?.name ?? 'vdl-project';
-    const vdlFile  = buildVDLFile(projName, nodeValues, locks, sceneHistory, allPrompts);
-    downloadVDL(vdlFile);
   };
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -178,7 +225,7 @@ export default function VDLFlowApp() {
         localStorage.setItem('vdl-flow-state', JSON.stringify(parsed));
         window.location.reload();
       } catch {
-        alert(t('toolbar.invalidFile'));
+        modal.confirm({ title: t('toolbar.invalidFile'), message: t('toolbar.invalidFileDesc') ?? 'The selected file is not a valid VDL-FLOW JSON export.', confirmLabel: 'OK' });
       }
     };
     reader.readAsText(file);
@@ -195,7 +242,7 @@ export default function VDLFlowApp() {
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href     = url;
-    a.download = `${projName}-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `vdl-save-${projName}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -221,7 +268,7 @@ export default function VDLFlowApp() {
         localStorage.setItem('vdl-active-project', newId);
         window.location.reload();
       } catch {
-        alert(t('project.openFileInvalid'));
+        modal.confirm({ title: t('project.openFileInvalid'), confirmLabel: 'OK' });
       }
     };
     reader.readAsText(file);
@@ -246,7 +293,8 @@ export default function VDLFlowApp() {
   // ─── Google Drive 開啟 ────────────────────────────────────────
 
   const handleDriveOpen = async (fileId: string, fileName: string) => {
-    if (!confirm(t('drive.loadConfirm', { name: fileName }))) return;
+    const ok = await modal.confirm({ title: t('drive.loadConfirm', { name: fileName }), message: t('drive.loadDesc') ?? 'Current unsaved changes will be lost.', confirmLabel: t('drive.open') });
+    if (!ok) return;
     const content = await drive.loadFromDrive(fileId);
     if (!content) return;
     try {
@@ -260,7 +308,7 @@ export default function VDLFlowApp() {
       localStorage.setItem('vdl-active-project', newId);
       window.location.reload();
     } catch {
-      alert(t('project.openFileInvalid'));
+      modal.confirm({ title: t('project.openFileInvalid'), confirmLabel: 'OK' });
     }
   };
 
@@ -293,9 +341,9 @@ export default function VDLFlowApp() {
       localStorage.setItem('vdl-active-project', newId);
       window.location.reload();
     } catch {
-      alert(t('splash.invalidFile'));
+      modal.confirm({ title: t('splash.invalidFile'), confirmLabel: 'OK' });
     }
-  }, [t]);
+  }, [t, modal]);
 
   const handleSplashContinue = useCallback((projectId: string) => {
     if (projectId === activeId) {
@@ -316,6 +364,24 @@ export default function VDLFlowApp() {
     await drive.listProjects();
   }, [drive]);
 
+  // ─── P0 電影模板套用 ─────────────────────────────────────────────
+  const handleApplyFilmTemplate = useCallback((tmpl: FilmTemplate) => {
+    if (showSplash) {
+      // createProject() 會 removeItem + reload，模板值必須透過 sessionStorage 傳遞
+      sessionStorage.setItem('vdl-pending-template', JSON.stringify(tmpl.nodes));
+      createProject(t(tmpl.nameKey));
+      // reload 後由下方 useEffect 接手套用
+    } else {
+      // 工具列模式：直接寫入 React state
+      Object.entries(tmpl.nodes).forEach(([nodeId, values]) => {
+        setNodeValues(nodeId, values);
+      });
+      setShowTemplateGallery(false);
+      setTemplateAppliedMsg(t('template.gallery.applied'));
+      setTimeout(() => setTemplateAppliedMsg(null), 3000);
+    }
+  }, [setNodeValues, t, showSplash, createProject]);
+
   // ─── 模板管理（跨節點存取，與 useTemplateVault 共享 localStorage 格式）──
 
   const getTemplatesForNode = useCallback((nodeId: string): NodeTemplate[] => {
@@ -335,7 +401,7 @@ export default function VDLFlowApp() {
       const existing = getTemplatesForNode(template.nodeId);
       const next = [newTpl, ...existing].slice(0, 20);
       localStorage.setItem(`vdl-templates-${template.nodeId}`, JSON.stringify(next));
-    } catch { /* quota */ }
+    } catch (e) { console.warn('[VDL] saveTemplate quota:', e); }
     return newTpl;
   }, [getTemplatesForNode]);
 
@@ -359,6 +425,17 @@ export default function VDLFlowApp() {
   // ─── 節點完成處理（必須在條件式 return 之前，遵守 Rules of Hooks）───
 
   const handleNodeComplete = useCallback((nodeDef: NodeDef, values: Record<string, string | number>) => {
+    // C3: 前置節點驗證 — 確保前序節點已完成
+    const nodeIdx = NODE_DEFS.findIndex(n => n.id === nodeDef.id);
+    if (nodeIdx < 0) { console.warn('[VDL] handleNodeComplete: unknown node', nodeDef.id); return; }
+    if (nodeIdx > 0) {
+      const prevNode = NODE_DEFS[nodeIdx - 1];
+      if (prevNode && !completedNodes.has(prevNode.id)) {
+        console.warn('[VDL] handleNodeComplete: prerequisite not met', prevNode.id);
+        return;
+      }
+    }
+
     const incoming: Record<string, { value: string | number; source: string }> = {};
     (nodeDef.locks || []).forEach(key => {
       if (values[key] !== undefined && values[key] !== '') {
@@ -438,7 +515,7 @@ export default function VDLFlowApp() {
             char_action: snap.prompt_mood,
           });
         }
-      } catch { /* timeline 生成失敗 → 不阻斷流程 */ }
+      } catch (e) { console.warn('[VDL] node_06 timeline failed:', e); }
     }
 
     // NODE 07 → stitchScenes 跨場景 A2 連續性驗證
@@ -476,7 +553,7 @@ export default function VDLFlowApp() {
         };
         const result = stitchScenes([...historyForStitch, sceneCurr]);
         setStitchReport(result);
-      } catch { /* stitch 失敗 → 不阻斷流程 */ }
+      } catch (e) { console.warn('[VDL] node_07 stitch failed:', e); }
     }
 
     // NODE 12 → QA 驗證 + 全片報告
@@ -514,13 +591,12 @@ export default function VDLFlowApp() {
           setFilmReport({ valid: filmResult.valid, snapshotCount: snapshots.length, gaps: filmResult.gaps });
         } else {
           const nextRetry = qaRetryCount + 1;
-          if (nextRetry >= 3) {
+          setQaRetryCount(nextRetry);        // 永遠遞增，確保 decay 累積
+          if (nextRetry >= 3) {              // M1: ≥3 觸發人工審核，decay 持續遞減至硬底 0.5
             setQaHumanReview(true);
-          } else {
-            setQaRetryCount(nextRetry);
           }
         }
-      } catch { /* 報告生成失敗 → 不阻斷 */ }
+      } catch (e) { console.warn('[VDL] node_12 QA report failed:', e); }
     }
 
     // NODE 09 → 全局風格鎖定
@@ -536,8 +612,11 @@ export default function VDLFlowApp() {
     // NODE 14 → exportPayload 組裝 + 自動下載
     if (nodeDef.id === 'node_14') {
       try {
+        const imgPf2 = assemblePreflightPrompt('image', nodeValues, locks, allPrompts);
+        const vidPf2 = assemblePreflightPrompt('video', nodeValues, locks, allPrompts);
         const payload = assembleExportPayload(
           nodeValues, locks, allPrompts, sceneHistory, shotHistory,
+          externalTools, { image: imgPf2.assembled, video: vidPf2.assembled },
         );
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const url  = URL.createObjectURL(blob);
@@ -546,18 +625,20 @@ export default function VDLFlowApp() {
         a.download = `vdl-export-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
         a.click();
         URL.revokeObjectURL(url);
-      } catch { /* payload 組裝失敗 → 不阻斷 */ }
+      } catch (e) { console.warn('[VDL] node_14 export failed:', e); }
     }
 
     writeLocks(incoming);
     setNodeValues(nodeDef.id, values);
     setPrompt(nodeDef.id, nodeDef.promptTemplate(values, locks));
     addCompletedNode(nodeDef.id);
-    const nextIdx = Math.min(NODE_DEFS.findIndex(n => n.id === nodeDef.id) + 1, NODE_DEFS.length - 1);
+    // M4: findIndex -1 guard
+    const curIdx = NODE_DEFS.findIndex(n => n.id === nodeDef.id);
+    const nextIdx = curIdx >= 0 ? Math.min(curIdx + 1, NODE_DEFS.length - 1) : NODE_DEFS.length - 1;
     setActiveIndex(nextIdx);
     // 自動跳到下一個 ACTIVE 節點
     setSelectedNodeId(NODE_DEFS[nextIdx]?.id ?? null);
-  }, [writeLocks, addCompletedNode, setActiveIndex, setNodeValues, setPrompt, nodeValues, locks, allPrompts, sceneHistory, shotHistory, addSceneToHistory, addQARecord, setStitchReport, setFilmReport, qaRetryCount]);
+  }, [writeLocks, addCompletedNode, setActiveIndex, setNodeValues, setPrompt, nodeValues, locks, allPrompts, sceneHistory, shotHistory, addSceneToHistory, addQARecord, setStitchReport, setFilmReport, qaRetryCount, completedNodes]);
 
   const handleCopyAll = () => {
     const assembled = NODE_DEFS
@@ -591,6 +672,15 @@ export default function VDLFlowApp() {
   // ─── Splash 渲染（所有 hooks 已定義完畢，條件式 return 安全）──
 
   if (showSplash) {
+    if (showTemplateGallery) {
+      return (
+        <FilmTemplateGallery
+          fullPage
+          onSelect={handleApplyFilmTemplate}
+          onClose={() => setShowTemplateGallery(false)}
+        />
+      );
+    }
     return (
       <SplashScreen
         recentProjects={projects}
@@ -601,6 +691,7 @@ export default function VDLFlowApp() {
         onDeleteProjects={deleteProject}
         onDriveOpen={handleSplashDriveOpen}
         onDriveListRequest={handleSplashDriveList}
+        onOpenTemplateGallery={() => setShowTemplateGallery(true)}
       />
     );
   }
@@ -609,6 +700,33 @@ export default function VDLFlowApp() {
 
   return (
     <div style={styles.app}>
+      <OnboardingOverlay />
+      {/* P0 電影模板 Gallery overlay */}
+      {showTemplateGallery && (
+        <FilmTemplateGallery
+          onSelect={handleApplyFilmTemplate}
+          onClose={() => setShowTemplateGallery(false)}
+        />
+      )}
+      {/* 模板套用成功 toast */}
+      {templateAppliedMsg && (
+        <div style={{
+          position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', zIndex: 300,
+          background: '#101820', border: '1px solid #A78BFA', borderRadius: 4,
+          padding: '8px 20px', color: '#DFCEEA', fontSize: 11,
+          fontFamily: "'Inter', 'Noto Sans TC', sans-serif", letterSpacing: 1,
+        }}>
+          {templateAppliedMsg}
+        </div>
+      )}
+      {modal.config && (
+        <ConfirmModal
+          open={!!modal.config}
+          {...modal.config}
+          onConfirm={modal.handleConfirm}
+          onCancel={modal.handleCancel}
+        />
+      )}
       {/* ─── Header ─── */}
       <header ref={headerRef} style={{ ...styles.header, opacity: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -642,19 +760,56 @@ export default function VDLFlowApp() {
           </div>
         </div>
         <div ref={progressBarRef} style={styles.progressBar}>
-          {NODE_DEFS.map((n, i) => (
-            <div
-              key={n.id}
-              data-dot
-              title={n.title}
-              style={{
-                ...styles.progressDot,
-                background: completedNodes.has(n.id) ? '#D9D9D6' : i === activeIndex ? '#818387' : '#333'
-              }}
-            />
-          ))}
+          {NODE_DEFS.map((n, i) => {
+            const done = completedNodes.has(n.id);
+            const active = i === activeIndex;
+            // 在 NODE 11 (step 11) 後插入 preflight_img 圓點
+            // 在 NODE 12 (step 12) 後插入 preflight_vid 圓點
+            const pfId = n.step === 11 ? 'preflight_img' : n.step === 12 ? 'preflight_vid' : null;
+            return (
+              <React.Fragment key={n.id}>
+                <div
+                  data-dot
+                  title={`${String(n.step).padStart(2, '0')} ${n.title}`}
+                  onClick={() => setSelectedNodeId(n.id)}
+                  style={{
+                    ...styles.progressDot,
+                    background: done ? '#DFCEEA' : active ? '#A78BFA' : '#333',
+                    color: done ? '#1C1C1C' : active ? '#1C1C1C' : '#63666A',
+                    border: active ? '1px solid #A78BFA' : '1px solid transparent',
+                  }}
+                >
+                  {n.step}
+                </div>
+                {pfId && (
+                  <div
+                    title={pfId === 'preflight_img' ? t('preflight.img.title') : t('preflight.vid.title')}
+                    onClick={() => {
+                      setPreflightCardId(pfId as 'preflight_img' | 'preflight_vid');
+                      setSelectedNodeId(null);
+                      panToNodeRef.current?.(pfId);
+                    }}
+                    style={{
+                      width: 12, height: 12, borderRadius: '50%',
+                      cursor: 'pointer', flexShrink: 0,
+                      background: done ? '#DFCEEA' : '#4C4E56',
+                      border: preflightCardId === pfId ? '1px solid #DFCEEA' : '1px solid transparent',
+                      transition: 'background 0.2s, border-color 0.2s',
+                    }}
+                  />
+                )}
+              </React.Fragment>
+            );
+          })}
         </div>
-        <p style={styles.progressText}>{t('app.nodesCompleted', { done: String(completedNodes.size), total: String(NODE_DEFS.length) })}</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+          <p style={styles.progressText}>{t('app.nodesCompleted', { done: String(completedNodes.size), total: String(NODE_DEFS.length) })}</p>
+          {lastSavedAt && (
+            <span style={{ fontSize: 9, color: '#555' }}>
+              {t('app.lastSaved') ?? 'Saved'} {new Date(lastSavedAt).toLocaleTimeString()}
+            </span>
+          )}
+        </div>
 
         {/* 多專案管理列 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
@@ -668,12 +823,21 @@ export default function VDLFlowApp() {
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
-          <button onClick={() => { const n = prompt(t('project.namePrompt'), t('project.defaultName')); if (n) createProject(n); }}
-            style={{ fontSize: 9, padding: '2px 6px', background: 'transparent', border: '1px solid #333', color: '#888', cursor: 'pointer', borderRadius: 2 }}>{t('project.new')}</button>
-          <button onClick={() => { const n = prompt(t('project.renamePrompt'), projects.find(p => p.id === activeId)?.name); if (n) renameProject(activeId, n); }}
-            style={{ fontSize: 9, padding: '2px 6px', background: 'transparent', border: '1px solid #333', color: '#888', cursor: 'pointer', borderRadius: 2 }}>{t('project.rename')}</button>
-          <button onClick={() => { if (confirm(t('project.deleteConfirm'))) deleteProject(activeId); }}
-            style={{ fontSize: 9, padding: '2px 6px', background: 'transparent', border: '1px solid #333', color: '#666', cursor: 'pointer', borderRadius: 2 }}>{t('project.delete')}</button>
+          <button onClick={async () => {
+            const result = await modal.confirm({ title: t('project.new'), inputLabel: t('project.namePrompt'), inputDefault: t('project.defaultName'), confirmLabel: t('project.new') });
+            if (result && typeof result === 'string') createProject(result);
+          }}
+            style={{ fontSize: 9, padding: '2px 6px', background: 'transparent', border: '1px solid #333', color: '#888', cursor: 'pointer', borderRadius: 2, minHeight: 28 }}>{t('project.new')}</button>
+          <button onClick={async () => {
+            const result = await modal.confirm({ title: t('project.rename'), inputLabel: t('project.renamePrompt'), inputDefault: projects.find(p => p.id === activeId)?.name ?? '', confirmLabel: t('project.rename') });
+            if (result && typeof result === 'string') renameProject(activeId, result);
+          }}
+            style={{ fontSize: 9, padding: '2px 6px', background: 'transparent', border: '1px solid #333', color: '#888', cursor: 'pointer', borderRadius: 2, minHeight: 28 }}>{t('project.rename')}</button>
+          <button onClick={async () => {
+            const ok = await modal.confirm({ title: t('project.deleteConfirm'), message: t('project.deleteDesc') ?? 'This will permanently delete this project.', danger: true, confirmLabel: t('project.delete') });
+            if (ok) deleteProject(activeId);
+          }}
+            style={{ fontSize: 9, padding: '2px 6px', background: 'transparent', border: '1px solid #333', color: '#666', cursor: 'pointer', borderRadius: 2, minHeight: 28 }}>{t('project.delete')}</button>
           <button onClick={saveCurrentProject}
             style={{ fontSize: 9, padding: '2px 6px', background: 'transparent', border: '1px solid #A78BFA', color: '#D9D9D6', cursor: 'pointer', borderRadius: 2 }}>{t('project.save')}</button>
 
@@ -706,7 +870,7 @@ export default function VDLFlowApp() {
                   disabled={drive.loading}
                   style={{ fontSize: 9, padding: '2px 6px', background: 'transparent', border: '1px solid #A78BFA', color: driveSaveStatus === 'saved' ? '#A78BFA' : '#D9D9D6', cursor: 'pointer', borderRadius: 2, opacity: drive.loading ? 0.5 : 1 }}
                 >
-                  {driveSaveStatus === 'saving' ? t('drive.saving') : driveSaveStatus === 'saved' ? t('drive.saved') : t('drive.save')}
+                  {driveSaveStatus === 'saving' ? <><LoadingSpinner size={10} color="#D9D9D6" /> {t('drive.saving')}</> : driveSaveStatus === 'saved' ? t('drive.saved') : t('drive.save')}
                 </button>
                 <button
                   onClick={handleShowDriveList}
@@ -727,8 +891,15 @@ export default function VDLFlowApp() {
 
         {/* Google Drive 錯誤 */}
         {drive.error && (
-          <div style={{ fontSize: 8, color: '#707372', marginTop: 4 }}>
-            {t('drive.error', { msg: drive.error })}
+          <div style={{ fontSize: 10, color: '#ef4444', marginTop: 6, padding: '6px 10px', background: '#1a0808', border: '1px solid #3a1a1a', borderRadius: 3, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span>{t('drive.errorFriendly') ?? 'Google Drive sync failed.'}</span>
+            <button onClick={() => drive.signOut()} style={{ fontSize: 9, color: '#818387', background: 'none', border: '1px solid #333', padding: '2px 8px', borderRadius: 2, cursor: 'pointer', fontFamily: 'inherit' }}>
+              {t('drive.retry') ?? 'Re-sign in'}
+            </button>
+            <details style={{ fontSize: 8, color: '#555', width: '100%' }}>
+              <summary style={{ cursor: 'pointer' }}>Details</summary>
+              <pre style={{ margin: '4px 0 0', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{drive.error}</pre>
+            </details>
           </div>
         )}
 
@@ -776,7 +947,6 @@ export default function VDLFlowApp() {
       {/* ─── V7: 隱藏滾軸 + 圓點導航 ─── */}
       <div
         ref={scrollContainerRef}
-        onScroll={handleScrollSnap}
         className="vdl-scroll-hide"
         style={{
           flex: 1,
@@ -800,7 +970,17 @@ export default function VDLFlowApp() {
             completedNodes={completedNodes}
             nodeValues={nodeValues}
             selectedNodeId={selectedNodeId}
-            onNodeSelect={setSelectedNodeId}
+            onNodeSelect={(nodeId) => {
+              if (nodeId?.startsWith('preflight_')) {
+                setPreflightCardId(nodeId as 'preflight_img' | 'preflight_vid');
+                setSelectedNodeId(null);
+              } else {
+                setSelectedNodeId(nodeId);
+                setPreflightCardId(null);
+              }
+            }}
+            isNewProject={completedNodes.size === 0 && activeIndex === 0}
+            panToNodeRef={panToNodeRef}
           />
 
           {/* 畫布內浮動編輯面板（右側 overlay） */}
@@ -809,7 +989,7 @@ export default function VDLFlowApp() {
               className="vdl-scroll-hide"
               style={{
                 position: 'absolute', top: 8, right: 8, bottom: 8,
-                width: 380, maxWidth: 'calc(50% - 16px)',
+                width: 440, maxWidth: 'calc(55% - 16px)',
                 zIndex: 20,
                 background: '#191919ee',
                 backdropFilter: 'blur(16px)',
@@ -849,6 +1029,19 @@ export default function VDLFlowApp() {
             </div>
           )}
 
+          {/* 畫布內浮動 Preflight 卡片（左側 overlay） */}
+          {preflightCardId && (
+            <PreflightCard
+              preflightType={preflightCardId === 'preflight_img' ? 'image' : 'video'}
+              nodeValues={nodeValues}
+              locks={locks}
+              allPrompts={allPrompts}
+              externalTools={externalTools}
+              onUpdateTools={setExternalTools}
+              onClose={() => setPreflightCardId(null)}
+            />
+          )}
+
           {/* 畫布內疊加：A2 跨場景報告 */}
           {stitchReport && (
             <div style={{
@@ -860,8 +1053,11 @@ export default function VDLFlowApp() {
                 {sceneHistory.length > 1 && <span style={{ color: '#888', marginLeft: 8 }}>{t('report.a2.accumulated', { count: String(sceneHistory.length) })}</span>}
               </div>
               {stitchReport.gaps.length > 0 && stitchReport.gaps.map((g, i) => (
-                <div key={i} style={{ color: '#f59e0b', marginBottom: 2 }}>
-                  ◎ {g.between[0]} → {g.between[1]} | {g.field}: Δ{g.delta.toFixed(3)}
+                <div key={i} style={{ color: '#f59e0b', marginBottom: 3, lineHeight: 1.6 }}>
+                  <span style={{ color: '#D9D9D6' }}>{g.field}</span>
+                  {' '}{t('report.gap.between') ?? 'differs between'}{' '}
+                  <span style={{ color: '#818387' }}>{g.between[0]}</span> → <span style={{ color: '#818387' }}>{g.between[1]}</span>
+                  {' '}({t('report.gap.delta') ?? 'by'} {g.delta.toFixed(2)})
                 </div>
               ))}
               {stitchReport.valid && (
@@ -882,15 +1078,21 @@ export default function VDLFlowApp() {
               {filmReport.gaps.length === 0
                 ? <div style={{ color: '#D9D9D6' }}>{t('report.film.allPass')}</div>
                 : filmReport.gaps.map((g, i) => (
-                  <div key={i} style={{ color: '#f59e0b', marginBottom: 2 }}>
-                    ◎ {g.between[0]} → {g.between[1]} | {g.field}: Δ{g.delta.toFixed(3)}
+                  <div key={i} style={{ color: '#f59e0b', marginBottom: 3, lineHeight: 1.6 }}>
+                    <span style={{ color: '#D9D9D6' }}>{g.field}</span>
+                    {' '}{t('report.gap.between') ?? 'differs between'}{' '}
+                    <span style={{ color: '#818387' }}>{g.between[0]}</span> → <span style={{ color: '#818387' }}>{g.between[1]}</span>
+                    {' '}({t('report.gap.delta') ?? 'by'} {g.delta.toFixed(2)})
                   </div>
                 ))
               }
               {filmReport.valid && (
                 <button
-                  onClick={() => { if (confirm(t('report.film.nextShotConfirm'))) { resetShot(); setStitchReport(null); setFilmReport(null); setQaRetryCount(0); setQaHumanReview(false); } }}
-                  style={{ marginTop: 6, fontSize: 9, color: '#60a5fa', background: 'none', border: '1px solid #1a2a4a', padding: '3px 10px', borderRadius: 2, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: 1 }}
+                  onClick={async () => {
+                    const ok = await modal.confirm({ title: t('report.film.nextShotConfirm'), message: t('report.film.nextShotDesc') ?? 'NODE 04-14 will be reset for the next shot. Global settings (NODE 01-03) are preserved.', confirmLabel: t('report.film.nextShot') });
+                    if (ok) { resetShot(); setStitchReport(null); setFilmReport(null); setQaRetryCount(0); setQaHumanReview(false); }
+                  }}
+                  style={{ marginTop: 6, fontSize: 9, color: '#60a5fa', background: 'none', border: '1px solid #1a2a4a', padding: '3px 10px', borderRadius: 2, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: 1, minHeight: 28 }}
                 >
                   {t('report.film.nextShot')}
                 </button>
@@ -994,6 +1196,10 @@ export default function VDLFlowApp() {
 
       {/* ─── 工具列 ─── */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 24 }}>
+        <button onClick={() => setShowTemplateGallery(true)}
+          style={{ fontSize: 10, color: '#DFCEEA', background: 'none', border: '1px solid #2A1A4A', padding: '4px 12px', borderRadius: 2, cursor: 'pointer', fontFamily: 'inherit' }}>
+          {t('splash.fromTemplate')}
+        </button>
         <button onClick={handleExport}
           style={{ fontSize: 10, color: '#D9D9D6', background: 'none', border: '1px solid #2A1A4A', padding: '4px 12px', borderRadius: 2, cursor: 'pointer', fontFamily: 'inherit' }}>
           {t('toolbar.exportJSON')}
@@ -1003,14 +1209,11 @@ export default function VDLFlowApp() {
           <input type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
         </label>
         <button
-          onClick={handleExportVDL}
-          style={{ fontSize: 10, color: '#a78bfa', background: 'none', border: '1px solid #2a1a4a', padding: '4px 12px', borderRadius: 2, cursor: 'pointer', fontFamily: 'inherit' }}
-        >
-          {t('toolbar.exportVDL')}
-        </button>
-        <button
-          onClick={() => { if (confirm(t('toolbar.resetConfirm'))) resetFlow(); }}
-          style={{ fontSize: 10, color: '#444', background: 'none', border: '1px solid #222', padding: '4px 12px', borderRadius: 2, cursor: 'pointer', fontFamily: 'inherit' }}
+          onClick={async () => {
+            const ok = await modal.confirm({ title: t('toolbar.resetConfirm'), message: t('toolbar.resetDesc') ?? 'All node data, locks, and prompts will be cleared.', danger: true, confirmLabel: t('toolbar.resetAll') });
+            if (ok) resetFlow();
+          }}
+          style={{ fontSize: 10, color: '#444', background: 'none', border: '1px solid #222', padding: '4px 12px', borderRadius: 2, cursor: 'pointer', fontFamily: 'inherit', minHeight: 32 }}
         >
           {t('toolbar.resetAll')}
         </button>
@@ -1064,35 +1267,6 @@ export default function VDLFlowApp() {
       </div>{/* 底部面板區關閉 */}
       </div>{/* scroll container 關閉 */}
 
-      {/* ─── 右側圓點導航 ─── */}
-      <div style={{
-        position: 'fixed',
-        right: 12,
-        top: '50%',
-        transform: 'translateY(-50%)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-        zIndex: 100,
-      }}>
-        {SECTION_LABELS.map((label, i) => (
-          <button
-            key={label}
-            onClick={() => scrollToSection(i)}
-            title={label}
-            style={{
-              width: activeSection === i ? 10 : 6,
-              height: activeSection === i ? 10 : 6,
-              borderRadius: '50%',
-              border: 'none',
-              background: activeSection === i ? '#A78BFA' : '#4C4E56',
-              cursor: 'pointer',
-              padding: 0,
-              transition: 'all 0.2s ease',
-            }}
-          />
-        ))}
-      </div>
     </div>
   );
 }

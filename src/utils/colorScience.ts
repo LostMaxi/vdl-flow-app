@@ -30,10 +30,10 @@ function xyzToLab(X: number, Y: number, Z: number): [number, number, number] {
 
 /** sRGB hex string ("#RRGGBB") → [L, a, b] */
 export function hexToLab(hex: string): [number, number, number] {
-  const h = hex.replace('#', '');
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
+  const h = hex.replace('#', '').padEnd(6, '0');  // 短 hex 補零防 NaN
+  const r = parseInt(h.slice(0, 2), 16) || 0;
+  const g = parseInt(h.slice(2, 4), 16) || 0;
+  const b = parseInt(h.slice(4, 6), 16) || 0;
   const [rl, gl, bl] = [srgbToLinear(r), srgbToLinear(g), srgbToLinear(b)];
   return xyzToLab(...linearRgbToXyz(rl, gl, bl));
 }

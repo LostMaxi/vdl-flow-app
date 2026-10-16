@@ -53,6 +53,32 @@ export const zhTW: Record<string, string> = {
   'splash.cancelSelect': '取消',
   'splash.selectAll': '全選',
   'splash.deleteSelected': '刪除 ({count})',
+  'splash.fromTemplate': '模板啟動',
+  'splash.fromTemplateDesc': '選擇電影風格，一鍵填入 NODE 01-09',
+
+  // ─── 電影模板 ─────────────────────────────────────────────
+  'template.gallery.title': '電影風格模板',
+  'template.gallery.subtitle': '選擇視覺風格 — 即刻填入 NODE 01-09',
+  'template.gallery.back': '← 返回',
+  'template.gallery.applied': '模板已套用 — NODE 01-09 已填入',
+  'template.noir.name': '黑色電影',
+  'template.noir.desc': '硬漢偵探故事、明暗對比、表現主義陰影',
+  'template.noir.tagline': '陰影中的真相',
+  'template.golden.name': '黃金時刻',
+  'template.golden.desc': '溫暖日落浪漫、Malick 式自然光、細膩情感',
+  'template.golden.tagline': '原諒一切的光',
+  'template.cyber.name': '賽博龐克',
+  'template.cyber.desc': '霓虹巨城、銀翼殺手美學、合成雨',
+  'template.cyber.tagline': '數位雨中的電子夢',
+  'template.nordic.name': '北歐寂靜',
+  'template.nordic.desc': '斯堪地納維亞極簡、冰封遼闊、冥想式寧靜',
+  'template.nordic.tagline': '寂靜中的千言萬語',
+  'template.wes.name': 'Wes Anderson',
+  'template.wes.desc': '對稱構圖、粉彩色盤、童話般的精準',
+  'template.wes.tagline': '完美構圖的憂鬱',
+  'template.wkw.name': '王家衛',
+  'template.wkw.desc': '飽和霓虹、步進式慢動作、香港的浪漫憂愁',
+  'template.wkw.tagline': '每個錯過裡的愛',
 
   // ─── 場景歷史 ──────────────────────────────────────────────
   'scene.history': '◎ SCENE HISTORY: {count} shot(s)',
@@ -197,7 +223,7 @@ export const zhTW: Record<string, string> = {
 
   // ─── 語言切換 ─────────────────────────────────────────────
   'lang.label': '語言',
-  'lang.zhTW': '中文',
+  'lang.zhTW': '繁中',
   'lang.en': 'EN',
 
   // ─── NODE 定義 — 標題與描述 (V2: 14 節點) ─────────────────
@@ -462,6 +488,7 @@ export const zhTW: Record<string, string> = {
   'field.generator.dalle3': 'DALL-E 3',
   'field.generator.midjourney': 'Midjourney',
   'field.generator.stability': 'Stability AI',
+  'field.generator.imagefx': 'Nana Banana 2 (ImageFx)',
   'field.seed.label': 'Seed 種子碼',
   'node11.importTitle': '◎ 匯入參考圖片 — VDL 逆向分析',
   'node11.importBtn': '▲ 選擇參考圖片',
@@ -545,4 +572,18 @@ export const zhTW: Record<string, string> = {
   'node.12.guide': '【用途】匯入參考影片 → 逐幀取樣 → 色溫漂移/色板一致性/動態偵測 → 提示詞修正。\n【簡易模式】設定片段 ID、時長、選擇影片生成端。\n【進階模式】檢視逐幀取樣數、色溫漂移 ±K、色板一致性、動態模式匹配度、轉場類型、撰寫影片提示詞修正。',
   'node.13.guide': '【用途】六軸指標掃描 → 偏差量測 → 回饋修正節點。\n【簡易模式】填入 ΔKelvin、ΔE 色差、CLIP 相似度。\n【進階模式】填入 YOLO 物件召回率、深度相關係數、NDF T 偏差、指定回饋節點。',
   'node.14.guide': '【用途】Film DNA 漂移偵測 → 修正向量 → 跨場景連續性驗證。\n【簡易模式】檢視累積漂移 % 與全片連續性狀態。\n【進階模式】檢視各軸漂移量 (ΔKelvin/ΔEV/ΔContrast/ΔSaturation)、修正率、串接間隙數、撰寫串接備註。',
+
+  // ─── 預檢 & 外部工具 ─────────────────────────────────────
+  'preflight.img.title': '預檢：圖片設定',
+  'preflight.vid.title': '預檢：影片設定',
+  'preflight.copy': '複製提示詞',
+  'preflight.copied': '已複製',
+  'preflight.empty': '尚無上游資料 — 請先完成節點以查看聚合設定。',
+  'tools.manage': '管理工具連結',
+  'tools.open': '開啟',
+  'tools.copyAndOpen': '複製並開啟',
+  'tools.addSlot': '+ 新增工具',
+  'tools.label': '標籤',
+  'tools.url': '網址',
+  'tools.save': '儲存',
 };

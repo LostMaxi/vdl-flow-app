@@ -17,10 +17,10 @@ npm test             # vitest run (42 tests)
 
 - **GitHub**: https://github.com/LostMaxi/vdl-flow-app
 - **Vercel Production**: https://vdl-flow-app.vercel.app
-- **Vercel Team**: `team_ffWkrtKZvCExEhhGcEdtcM7J` (LostMaxi's projects)
-- **Vercel Project ID**: `prj_aytvURniQtxca2tEyKxm9G2zH8CC`
+- **Vercel Team**: `<VERCEL_TEAM_ID>` (LostMaxi's projects)
+- **Vercel Project ID**: `<VERCEL_PROJECT_ID>`
 - **部署方式**: push 到 GitHub main → Vercel CLI `vercel --prod --yes` 手動觸發
-- **本地同步路徑**: `E:\N-Dimensional Bio-inspired Neural Protocol\Creative-Projects\VDL-Flow-App`
+- **本地駐點**: `E:\N-Dimensional Bio-inspired Neural Protocol\2-State\VDL-Flow-App`（NDB 主 repo tracked · 2026-07-11 校 · 舊 Creative-Projects/ 路徑已廢）
 - **注意**: 本地為 `N-Dimensional-Bio-Protocol` mono-repo 的子目錄，需 clone `vdl-flow-app` repo 到暫存位置同步後 push
 
 ## Tech Stack

@@ -63,20 +63,45 @@ export function quickTermTranslate(text: string): string {
   return result;
 }
 
+// ─── ASI GAS 翻譯（透過 ASI Trinity 後端，免本地 API Key）────
+
+async function translateWithGAS(text: string): Promise<string | null> {
+  const gasUrl = import.meta.env.VITE_GAS_URL;
+  if (!gasUrl) return null;
+
+  try {
+    const res = await fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        mode: 'translate',
+        message: text,
+        targetLang: 'zh-TW',
+      }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.error) return null;
+    return data.translated?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 // ─── Gemini API 全文翻譯（需 API Key）─────────────────────────
 
-export async function translateWithGemini(text: string): Promise<string> {
+async function translateWithGemini(text: string): Promise<string | null> {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  if (!apiKey) {
-    // 無 API Key → fallback 純術語替換
-    return quickTermTranslate(text);
-  }
+  if (!apiKey) return null;
+
   try {
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(15_000),
         body: JSON.stringify({
           contents: [{
             parts: [{
@@ -87,11 +112,25 @@ export async function translateWithGemini(text: string): Promise<string> {
         }),
       }
     );
-    if (!res.ok) return quickTermTranslate(text);
+    if (!res.ok) return null;
     const data = await res.json();
-    const translated = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    return translated?.trim() || quickTermTranslate(text);
+    return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
   } catch {
-    return quickTermTranslate(text);
+    return null;
   }
+}
+
+// ─── 統一翻譯入口：GAS → Gemini → 本地術語替換 ──────────────
+
+export async function translatePrompt(text: string): Promise<string> {
+  // 1. 優先 ASI GAS（免 API Key）
+  const gasResult = await translateWithGAS(text);
+  if (gasResult) return gasResult;
+
+  // 2. 直連 Gemini（需 VITE_GEMINI_API_KEY）
+  const geminiResult = await translateWithGemini(text);
+  if (geminiResult) return geminiResult;
+
+  // 3. 純前端術語替換（離線 fallback）
+  return quickTermTranslate(text);
 }

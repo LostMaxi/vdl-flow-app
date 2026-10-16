@@ -4,7 +4,7 @@
 
 import type { SceneConfig, StitchResult } from '../engine/vdlTimeline';
 import type { ShotRecord } from '../hooks/usePersistentFlow';
-import type { LockEntry } from '../types/vdl';
+import type { LockEntry, ExternalToolSlot } from '../types/vdl';
 
 // ─── Remotion 三階段渲染層級 ────────────────────────────────
 
@@ -42,6 +42,10 @@ export interface ExportPayload {
     photometricCurve: unknown[];       // 光度學曲線數據
   };
 
+  // ─── Preflight & External Tools
+  externalTools?: ExternalToolSlot[];
+  preflightPrompts?: { image?: string; video?: string };
+
   // ─── Render Config (Remotion 預留)
   renderConfig: {
     level: RenderLevel;
@@ -61,6 +65,8 @@ export function assembleExportPayload(
   allPrompts: Record<string, string>,
   sceneHistory: SceneConfig[],
   shotHistory: ShotRecord[],
+  externalTools?: ExternalToolSlot[],
+  preflightPrompts?: { image?: string; video?: string },
 ): ExportPayload {
   return {
     version: '2.0',
@@ -70,6 +76,8 @@ export function assembleExportPayload(
     allPrompts,
     sceneHistory,
     shotHistory,
+    externalTools: externalTools ?? [],
+    preflightPrompts: preflightPrompts ?? {},
     anchors: {
       ndfCurve: [],
       sceneCutPoints: [],

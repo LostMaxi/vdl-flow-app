@@ -82,10 +82,23 @@ const dataflowEdges: Edge[] = [
   deletable: false,
 }));
 
+// ─── Preflight 分支連線 (dashed 紫羅蘭, 不阻斷) ─────────────
+
+const preflightEdges: Edge[] = [
+  { id: 'pf-11-img', source: 'node_11', target: 'preflight_img' },
+  { id: 'pf-12-vid', source: 'node_12', target: 'preflight_vid' },
+].map(e => ({
+  ...e,
+  type: 'smoothstep',
+  style: EDGE_STYLES.constraint,
+  deletable: false,
+  selectable: false,
+}));
+
 // ─── 匯出全部連線 ───────────────────────────────────────────
 
 export function getInitialEdges(): Edge[] {
-  return [...pipelineEdges, ...dataflowEdges];
+  return [...pipelineEdges, ...dataflowEdges, ...preflightEdges];
 }
 
 // ─── Film DNA 約束連線（動態生成，當 DNA 啟用時）──────────────
